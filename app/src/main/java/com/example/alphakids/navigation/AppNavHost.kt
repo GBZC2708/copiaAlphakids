@@ -27,7 +27,7 @@ import com.example.alphakids.ui.screens.teacher.words.AssignWordScreen
 import com.example.alphakids.ui.screens.teacher.words.WordDetailScreen
 import com.example.alphakids.ui.screens.teacher.words.WordsScreen
 import com.example.alphakids.ui.screens.teacher.words.WordEditScreen
-import com.example.alphakids.ui.screens.teacher.home.TeacherHomeScreen
+import com.example.alphakids.ui.screens.teacher.home.TeacherHomeRoute
 import com.example.alphakids.ui.screens.teacher.students.TeacherStudentsScreen
 import com.example.alphakids.ui.screens.teacher.students.StudentDetailScreen
 import com.example.alphakids.ui.screens.tutor.profile_selection.ProfileSelectionScreen
@@ -406,11 +406,10 @@ fun AppNavHost(
 
         // Docente: pantalla principal
         composable(Routes.TEACHER_HOME) {
-            TeacherHomeScreen(
-                teacherName = "Profesor/a",
-                onAssignWordsClick = { navController.navigate(Routes.ASSIGN_WORD) },
-                onLogoutClick = onLogout,
+            TeacherHomeRoute(
                 onBackClick = { navController.popBackStack() },
+                onLogoutClick = onLogout,
+                onAssignWordsClick = { navController.navigate(Routes.ASSIGN_WORD) },
                 onSettingsClick = { navController.navigate(Routes.editProfileRoute(Routes.ROLE_TEACHER)) },
                 onBottomNavClick = navigateToTeacherBottomNav,
                 currentRoute = "home"

@@ -1,5 +1,6 @@
 package com.example.alphakids.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,19 +27,31 @@ import com.example.alphakids.ui.theme.dmSansFamily
 fun AppHeader(
     modifier: Modifier = Modifier,
     title: String,
+    subtitle: String? = null,
     navigationIcon: @Composable (() -> Unit)? = null,
     actionIcon: @Composable (() -> Unit)? = null
 ) {
     TopAppBar(
         modifier = modifier,
         title = {
-            Text(
-                text = title,
-                fontFamily = dmSansFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 24.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Column {
+                Text(
+                    text = title,
+                    fontFamily = dmSansFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 24.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontFamily = dmSansFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         },
         navigationIcon = {
             navigationIcon?.let { it() }

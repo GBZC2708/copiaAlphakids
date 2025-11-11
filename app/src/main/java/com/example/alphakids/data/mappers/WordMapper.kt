@@ -23,6 +23,7 @@ object WordMapper {
         return PalabraDto(
             id = domain.id,
             texto = domain.texto,
+            textoNormalizado = domain.texto.trim().lowercase(),
             categoria = domain.categoria,
             nivelDificultad = domain.nivelDificultad,
             imagen = domain.imagenUrl,

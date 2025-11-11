@@ -1,5 +1,6 @@
 package com.example.alphakids.data.seed
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
@@ -124,12 +125,24 @@ class DemoDataSeeder @Inject constructor(
             Triple("mesa", 25, "objetos")
         )
         words.forEachIndexed { index, (texto, coins, categoria) ->
+            val dificultad = when {
+                coins <= 12 -> "Fácil"
+                coins >= 20 -> "Difícil"
+                else -> "Intermedio"
+            }
             val data = mapOf(
                 "texto" to texto,
-                "reward_coins" to coins,
+                "texto_normalizado" to texto.lowercase(),
+                "categoria" to categoria,
                 "categoriaId" to categoria,
+                "nivelDificultad" to dificultad,
+                "imagen" to "https://demo.alphakids.app/images/$texto.png",
+                "audio" to "https://demo.alphakids.app/audio/$texto.mp3",
+                "reward_coins" to coins,
+                "creadoPor" to "docente_demo",
                 "docenteId" to "docente_demo",
-                "orden" to index
+                "orden" to index,
+                "fechaCreacion" to FieldValue.serverTimestamp()
             )
             firestore.collection("palabras").document(texto).set(data, SetOptions.merge()).await()
         }
