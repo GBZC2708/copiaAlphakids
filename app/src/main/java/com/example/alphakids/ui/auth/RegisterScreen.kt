@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,13 +35,8 @@ fun RegisterScreen(
     isTutorRegister: Boolean = true,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    var nombre by remember { mutableStateOf("") }
-    var apellido by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-
     val uiState by viewModel.authUiState.collectAsState()
+    val formState by viewModel.registerFormState.collectAsState()
     val isLoading = uiState is AuthUiState.Loading
 
     LaunchedEffect(Unit) {
@@ -117,48 +114,69 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                if (uiState is AuthUiState.Empty) {
+                    Text(
+                        text = "Completa los datos para crear tu cuenta",
+                        fontFamily = dmSansFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 LabeledTextField(
                     label = "Nombre",
-                    value = nombre,
-                    onValueChange = { nombre = it },
-                    placeholderText = "Escribe tu nombre"
+                    value = formState.nombre,
+                    onValueChange = viewModel::onRegisterNombreChanged,
+                    placeholderText = "Escribe tu nombre",
+                    error = formState.nombreError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Apellido",
-                    value = apellido,
-                    onValueChange = { apellido = it },
-                    placeholderText = "Escribe tu apellido"
+                    value = formState.apellido,
+                    onValueChange = viewModel::onRegisterApellidoChanged,
+                    placeholderText = "Escribe tu apellido",
+                    error = formState.apellidoError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Email",
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholderText = "Escribe tu email"
+                    value = formState.email,
+                    onValueChange = viewModel::onRegisterEmailChanged,
+                    placeholderText = "Escribe tu email",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    error = formState.emailError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Contraseña",
-                    value = password,
-                    onValueChange = { password = it },
+                    value = formState.password,
+                    onValueChange = viewModel::onRegisterPasswordChanged,
                     placeholderText = "Escribe tu contraseña",
-                    visualTransformation = PasswordVisualTransformation()
+                    visualTransformation = PasswordVisualTransformation(),
+                    error = formState.passwordError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Teléfono",
-                    value = telefono,
-                    onValueChange = { telefono = it },
-                    placeholderText = "Escribe tu teléfono"
+                    value = formState.telefono,
+                    onValueChange = viewModel::onRegisterTelefonoChanged,
+                    placeholderText = "Escribe tu teléfono",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    error = formState.telefonoError
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -177,19 +195,7 @@ fun RegisterScreen(
                     text = "Crear cuenta",
                     onClick = {
                         val rol = if (isTutorRegister) "tutor" else "docente"
-
-                        if (nombre.isNotBlank() && apellido.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                            viewModel.register(
-                                nombre = nombre,
-                                apellido = apellido,
-                                email = email,
-                                clave = password,
-                                telefono = telefono,
-                                rol = rol
-                            )
-                        } else {
-                            // TODO: Mostrar error de campos vacíos
-                        }
+                        viewModel.submitRegister(rol)
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading
