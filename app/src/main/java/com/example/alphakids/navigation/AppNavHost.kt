@@ -543,8 +543,10 @@ fun AppNavHost(
         composable(
             route = Routes.STUDENT_PROFILE_EDIT,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
-        ) {
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: return@composable
             EditStudentProfileScreen(
+                studentId = studentId,
                 onBackClick = { navController.popBackStack() },
                 onCloseClick = { navController.popBackStack() },
                 onSaveClick = { navController.popBackStack() }

@@ -8,7 +8,12 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.alphakids.ui.auth.AuthViewModel
+import com.example.alphakids.ui.student.StudentListUiState
 import com.example.alphakids.ui.student.StudentViewModel
 import com.example.alphakids.ui.components.AppHeader
 import com.example.alphakids.ui.components.CustomFAB
@@ -36,7 +42,7 @@ fun ProfileSelectionScreen(
 ) {
     val currentUser by authViewModel.currentUser.collectAsState()
     val tutorName = currentUser?.nombre
-    val students by studentViewModel.students.collectAsState()
+    val studentListState by studentViewModel.studentListUiState.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -103,29 +109,94 @@ fun ProfileSelectionScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(students, key = { it.id }) { student ->
-                    StudentProfileCard(
-                        title = student.nombre,
-                        description = student.grado,
-                        icon = Icons.Rounded.Face, // TODO: Usar student.fotoPerfil
-                        onClick = { onProfileClick(student.id) }
-                    )
+            when (val state = studentListState) {
+                StudentListUiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-                item {
-                    StudentProfileCard(
-                        title = "Agregar perfil",
-                        description = "Crea el perfil de tu hijo",
-                        icon = Icons.Rounded.Add,
-                        onClick = onAddProfileClick
-                    )
+
+                StudentListUiState.Empty -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Aún no registras estudiantes",
+                            fontFamily = dmSansFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        StudentProfileCard(
+                            title = "Agregar perfil",
+                            description = "Crea el perfil de tu hijo",
+                            icon = Icons.Rounded.Add,
+                            onClick = onAddProfileClick
+                        )
+                    }
+                }
+
+                is StudentListUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = state.message,
+                            fontFamily = dmSansFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        StudentProfileCard(
+                            title = "Agregar perfil",
+                            description = "Crea el perfil de tu hijo",
+                            icon = Icons.Rounded.Add,
+                            onClick = onAddProfileClick
+                        )
+                    }
+                }
+
+                is StudentListUiState.Success -> {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.students, key = { it.id }) { student ->
+                            val gradeText = if (student.grado.isBlank()) "Sin grado" else student.grado
+                            StudentProfileCard(
+                                title = student.fullName,
+                                description = gradeText,
+                                supportingText = "Monedas: ${student.coins}",
+                                icon = Icons.Rounded.Face,
+                                onClick = { onProfileClick(student.id) }
+                            )
+                        }
+                        item {
+                            StudentProfileCard(
+                                title = "Agregar perfil",
+                                description = "Crea el perfil de tu hijo",
+                                icon = Icons.Rounded.Add,
+                                onClick = onAddProfileClick
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

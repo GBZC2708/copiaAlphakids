@@ -38,6 +38,7 @@ fun StudentProfileCard(
     modifier: Modifier = Modifier,
     title: String,
     description: String,
+    supportingText: String? = null,
     icon: ImageVector,
     onClick: () -> Unit
 ) {
@@ -84,10 +85,20 @@ fun StudentProfileCard(
             Text(
                 text = description,
                 fontFamily = dmSansFamily,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Medium,
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.primary
             )
+
+            if (!supportingText.isNullOrBlank()) {
+                Text(
+                    text = supportingText,
+                    fontFamily = dmSansFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -99,13 +110,15 @@ fun StudentProfileCardPreview() {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             StudentProfileCard(
                 title = "Sofía",
-                description = "Institución Educativa Santa Sofía",
-                icon = Icons.Rounded.Face, // Placeholder para el icono de conejo
+                description = "2.º grado",
+                supportingText = "Monedas: 120",
+                icon = Icons.Rounded.Face,
                 onClick = {}
             )
             StudentProfileCard(
                 title = "Agregar perfil",
                 description = "Crea el perfil de tu hijo",
+                supportingText = null,
                 icon = Icons.Rounded.Add,
                 onClick = {}
             )
