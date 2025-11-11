@@ -9,7 +9,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.ChildCare
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.alphakids.ui.student.StudentUiState
 import com.example.alphakids.ui.student.StudentViewModel
+import com.example.alphakids.ui.student.TeacherListUiState
 import com.example.alphakids.ui.components.AppHeader
 import com.example.alphakids.ui.components.IconContainer
 import com.example.alphakids.ui.components.LabeledDropdownField
@@ -52,7 +60,10 @@ fun CreateStudentProfileScreen(
 
     val uiState by viewModel.createUiState.collectAsState()
     val isLoading = uiState is StudentUiState.Loading
+    val teacherState by viewModel.teacherListUiState.collectAsState()
     val context = LocalContext.current
+
+    var actionError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.createUiState.collectLatest { state ->
@@ -61,15 +72,32 @@ fun CreateStudentProfileScreen(
                     Toast.makeText(context, "Perfil creado", Toast.LENGTH_SHORT).show()
                     onCreateSuccess()
                     viewModel.resetCreateState()
+                    actionError = null
                 }
                 is StudentUiState.Error -> {
                     Toast.makeText(context, "Error: ${state.message}", Toast.LENGTH_LONG).show()
+                    actionError = state.message
                     viewModel.resetCreateState()
                 }
                 else -> {}
             }
         }
     }
+
+    var nombreError by remember { mutableStateOf<String?>(null) }
+    var apellidoError by remember { mutableStateOf<String?>(null) }
+    var edadError by remember { mutableStateOf<String?>(null) }
+    var docenteError by remember { mutableStateOf<String?>(null) }
+
+    var selectedDocenteId by remember { mutableStateOf<String?>(null) }
+    var docenteMenuExpanded by remember { mutableStateOf(false) }
+
+    val teacherOptions = when (val state = teacherState) {
+        is TeacherListUiState.Success -> state.teachers
+        else -> emptyList()
+    }
+
+    val selectedDocenteName = teacherOptions.firstOrNull { it.id == selectedDocenteId }?.fullName ?: ""
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -122,28 +150,126 @@ fun CreateStudentProfileScreen(
                 LabeledTextField(
                     label = "Nombre",
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = {
+                        nombre = it
+                        if (nombreError != null) nombreError = null
+                    },
                     placeholderText = "Nombre del niño"
                 )
+                nombreError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = dmSansFamily,
+                        fontSize = 12.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Apellido",
                     value = apellido,
-                    onValueChange = { apellido = it },
+                    onValueChange = {
+                        apellido = it
+                        if (apellidoError != null) apellidoError = null
+                    },
                     placeholderText = "Apellido del niño"
                 )
+                apellidoError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = dmSansFamily,
+                        fontSize = 12.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Edad",
                     value = edadString,
-                    onValueChange = { edadString = it.filter { char -> char.isDigit() } },
+                    onValueChange = {
+                        edadString = it.filter { char -> char.isDigit() }
+                        if (edadError != null) edadError = null
+                    },
                     placeholderText = "Edad del niño (ej. 4)",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
+                edadError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = dmSansFamily,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box {
+                    LabeledDropdownField(
+                        label = "Docente",
+                        selectedOption = selectedDocenteName,
+                        placeholderText = "Selecciona docente",
+                        onClick = {
+                            if (teacherOptions.isNotEmpty()) {
+                                docenteMenuExpanded = true
+                            }
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = docenteMenuExpanded,
+                        onDismissRequest = { docenteMenuExpanded = false }
+                    ) {
+                        teacherOptions.forEach { teacher ->
+                            DropdownMenuItem(
+                                text = { Text(teacher.fullName) },
+                                onClick = {
+                                    selectedDocenteId = teacher.id
+                                    docenteError = null
+                                    docenteMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                when (teacherState) {
+                    TeacherListUiState.Loading -> {
+                        Text(
+                            text = "Cargando docentes...",
+                            fontFamily = dmSansFamily,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TeacherListUiState.Empty -> {
+                        Text(
+                            text = "No hay docentes disponibles",
+                            fontFamily = dmSansFamily,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    is TeacherListUiState.Error -> {
+                        Text(
+                            text = teacherState.message,
+                            fontFamily = dmSansFamily,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    else -> {}
+                }
+                docenteError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = dmSansFamily,
+                        fontSize = 12.sp
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -170,34 +296,35 @@ fun CreateStudentProfileScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                if (uiState is StudentUiState.Error) {
-
+                actionError?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = dmSansFamily,
+                        fontSize = 12.sp
+                    )
                 }
 
                 PrimaryButton(
                     text = "Crear Perfil",
                     onClick = {
                         val edadInt = edadString.toIntOrNull()
-                        if (nombre.isBlank()) {
-                            Toast.makeText(context, "Ingresa el nombre", Toast.LENGTH_SHORT).show()
-                            return@PrimaryButton
-                        }
-                        if (apellido.isBlank()) {
-                            Toast.makeText(context, "Ingresa el apellido", Toast.LENGTH_SHORT).show()
-                            return@PrimaryButton
-                        }
-                        if (edadInt == null || edadInt <= 0) {
-                            Toast.makeText(context, "Ingresa una edad válida", Toast.LENGTH_SHORT).show()
+                        nombreError = if (nombre.isBlank()) "Ingresa el nombre" else null
+                        apellidoError = if (apellido.isBlank()) "Ingresa el apellido" else null
+                        edadError = if (edadInt == null || edadInt <= 0) "Ingresa una edad válida" else null
+                        docenteError = if (selectedDocenteId.isNullOrEmpty()) "Selecciona un docente" else null
+
+                        if (listOf(nombreError, apellidoError, edadError, docenteError).any { it != null }) {
                             return@PrimaryButton
                         }
 
                         viewModel.createStudent(
                             nombre = nombre,
                             apellido = apellido,
-                            edad = edadInt,
+                            edad = edadInt ?: 0,
                             grado = selectedGrado ?: "",
                             seccion = selectedSeccion ?: "",
-                            idInstitucion = "" // TODO: Replace "" with actual institution ID
+                            docenteId = selectedDocenteId.orEmpty()
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),

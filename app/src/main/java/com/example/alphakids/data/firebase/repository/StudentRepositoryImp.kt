@@ -6,10 +6,9 @@ import com.example.alphakids.domain.repository.CreateStudentResult
 import com.example.alphakids.domain.repository.StudentRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -34,17 +33,28 @@ class StudentRepositoryImpl @Inject constructor(
     override fun getStudentsForTutor(tutorId: String): Flow<List<Estudiante>> {
         Log.d("StudentRepo", "Fetching students for tutor ID: $tutorId")
         val query: Query = estudiantesCol.whereEqualTo("id_tutor", tutorId)
-        return query.snapshots().map { querySnapshot -> // <-- Usa snapshots() y map()
+        return query.snapshots().map { querySnapshot ->
             Log.d("StudentRepo", "Snapshot received. Documents found: ${querySnapshot.size()}")
             if (querySnapshot.metadata.hasPendingWrites()) {
                 Log.d("StudentRepo", "Snapshot has pending writes.")
             }
-            val students = querySnapshot.toObjects(Estudiante::class.java)
-            Log.d("StudentRepo", "Mapped ${students.size} students")
-            students
-        }.catch { exception ->
-            Log.e("StudentRepo", "Error in student flow for tutor $tutorId", exception)
-            emit(emptyList())
+            querySnapshot.toObjects(Estudiante::class.java)
+        }
+    }
+
+    override fun observeStudent(studentId: String): Flow<Estudiante?> {
+        return estudiantesCol.document(studentId).snapshots().map { snapshot ->
+            snapshot.toObject(Estudiante::class.java)
+        }
+    }
+
+    override suspend fun updateStudent(estudiante: Estudiante): Result<Unit> {
+        return try {
+            estudiantesCol.document(estudiante.id).set(estudiante, SetOptions.merge()).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("StudentRepo", "Error updating student ${estudiante.id}", e)
+            Result.failure(e)
         }
     }
 }

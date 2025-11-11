@@ -9,8 +9,16 @@ data class Docente(
     @DocumentId
     val uid: String = "",
 
-    @PropertyName("idInstitucion")
-    val idInstitucion: String = "",
+    val nombre: String = "",
+    val apellido: String = "",
+
+    @get:PropertyName("institucionId")
+    @set:PropertyName("institucionId")
+    var institucionId: String? = null,
+
+    @get:PropertyName("idInstitucion")
+    @set:PropertyName("idInstitucion")
+    var idInstitucionCompat: String? = null,
 
     val seccion: String = "",
     val grado: String = "",
