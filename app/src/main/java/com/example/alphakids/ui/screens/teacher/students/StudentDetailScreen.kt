@@ -62,7 +62,7 @@ fun StudentDetailScreen(
 ) {
     val teacherBottomNavItems = listOf(
         BottomNavItem("home", "Inicio", Icons.Rounded.Home),
-        BottomNavItem("students", "Alumnos", Icons.Rounded.Groups),
+        BottomNavItem("students", "Estudiantes", Icons.Rounded.Groups),
         BottomNavItem("words", "Palabras", Icons.Rounded.Spellcheck)
     )
 
@@ -72,7 +72,7 @@ fun StudentDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AppHeader(
-                title = "Mi alumno",
+                title = "Mi estudiante",
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(

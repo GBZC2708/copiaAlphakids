@@ -21,6 +21,7 @@ data class Estudiante(
     var idInstitucion: String = "",
     @get:PropertyName("foto_perfil") @set:PropertyName("foto_perfil")
     var fotoPerfil: String? = null,
+    var coins: Int = 0,
     @get:PropertyName("fecha_registro") @ServerTimestamp @set:PropertyName("fecha_registro")
     var fechaRegistro: Timestamp? = null
 )

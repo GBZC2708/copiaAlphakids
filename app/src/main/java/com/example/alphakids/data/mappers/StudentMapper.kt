@@ -17,7 +17,8 @@ object StudentMapper {
             idDocente = dto.idDocente,
             idInstitucion = dto.idInstitucion,
             fotoPerfilUrl = dto.fotoPerfil,
-            fechaRegistroMillis = dto.fechaRegistro?.toDate()?.time
+            fechaRegistroMillis = dto.fechaRegistro?.toDate()?.time,
+            coins = dto.coins
         )
     }
 
@@ -33,6 +34,7 @@ object StudentMapper {
             idDocente = model.idDocente,
             idInstitucion = model.idInstitucion,
             fotoPerfil = model.fotoPerfilUrl,
+            coins = model.coins,
             fechaRegistro = null
         )
     }

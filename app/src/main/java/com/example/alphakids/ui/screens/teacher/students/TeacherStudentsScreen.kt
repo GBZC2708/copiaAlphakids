@@ -54,7 +54,7 @@ fun TeacherStudentsScreen(
 ) {
     val teacherBottomNavItems = listOf(
         BottomNavItem("home", "Inicio", Icons.Rounded.Home),
-        BottomNavItem("students", "Alumnos", Icons.Rounded.Groups),
+        BottomNavItem("students", "Estudiantes", Icons.Rounded.Groups),
         BottomNavItem("words", "Palabras", Icons.Rounded.Spellcheck)
     )
 
@@ -65,7 +65,7 @@ fun TeacherStudentsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AppHeader(
-                title = "Mis alumnos",
+                title = "Mis estudiantes",
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
