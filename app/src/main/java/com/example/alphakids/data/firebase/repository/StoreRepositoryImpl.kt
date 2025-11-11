@@ -10,6 +10,7 @@ import com.example.alphakids.domain.models.StoreItem
 import com.example.alphakids.domain.models.StudentInventoryItem
 import com.example.alphakids.domain.models.StudentPet
 import com.example.alphakids.domain.repository.StoreRepository
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.snapshots
@@ -78,14 +79,15 @@ class StoreRepositoryImpl @Inject constructor(
         return runCatching {
             firestore.runTransaction { transaction ->
                 val petRef = petsCollection.document(estudianteId)
+                val inventoryRef = inventoryCollection.document("${estudianteId}_$itemId")
                 val snapshot = transaction.get(petRef)
+                val inventorySnapshot = transaction.get(inventoryRef)
                 if (!snapshot.exists()) throw IllegalStateException("Mascota no encontrada")
+                if (!inventorySnapshot.exists()) throw IllegalStateException("No tienes este accesorio")
+                val currentQty = inventorySnapshot.getLong("qty") ?: 0L
+                if (currentQty <= 0L) throw IllegalStateException("No tienes este accesorio")
                 val equipped = (snapshot.get("equippedAccessories") as? Map<String, String?>)?.toMutableMap() ?: mutableMapOf()
                 val slotKey = slot.name
-                val current = equipped[slotKey]
-                if (!current.isNullOrEmpty() && current != itemId) {
-                    throw IllegalStateException("Slot ocupado")
-                }
                 equipped[slotKey] = itemId
                 transaction.update(petRef, mapOf("equippedAccessories" to equipped))
                 null
@@ -100,6 +102,42 @@ class StoreRepositoryImpl @Inject constructor(
     ): Result<Unit> {
         return runCatching {
             transactionHelper.consumeConsumable(estudianteId, itemId, quantity)
+        }
+    }
+
+    override suspend fun feedPet(
+        estudianteId: String,
+        itemId: String,
+        hungerDelta: Int,
+        happinessDelta: Int
+    ): Result<Unit> {
+        return runCatching {
+            firestore.runTransaction { transaction ->
+                val petRef = petsCollection.document(estudianteId)
+                val inventoryRef = inventoryCollection.document("${estudianteId}_$itemId")
+                val petSnapshot = transaction.get(petRef)
+                if (!petSnapshot.exists()) throw IllegalStateException("Mascota no encontrada")
+                val inventorySnapshot = transaction.get(inventoryRef)
+                if (!inventorySnapshot.exists()) throw IllegalStateException("No tienes este artículo")
+                val currentQty = inventorySnapshot.getLong("qty") ?: 0L
+                if (currentQty <= 0L) throw IllegalStateException("No tienes este artículo")
+                val currentHunger = petSnapshot.getLong("hunger")?.toInt() ?: 0
+                val currentHappiness = petSnapshot.getLong("happiness")?.toInt() ?: 0
+                if (currentHunger >= 100 && currentHappiness >= 100) {
+                    throw IllegalStateException("Mascota llena")
+                }
+                val newHunger = (currentHunger + hungerDelta).coerceIn(0, 100)
+                val newHappiness = (currentHappiness + happinessDelta).coerceIn(0, 100)
+                transaction.update(
+                    petRef,
+                    mapOf(
+                        "hunger" to newHunger,
+                        "happiness" to newHappiness
+                    )
+                )
+                transaction.update(inventoryRef, "qty", FieldValue.increment(-1))
+                null
+            }.await()
         }
     }
 }
