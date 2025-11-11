@@ -7,6 +7,7 @@ data class Word(
     val nivelDificultad: String,
     val imagenUrl: String,
     val audioUrl: String,
+    val rewardCoins: Int,
     val fechaCreacionMillis: Long?,
     val creadoPor: String?
 )

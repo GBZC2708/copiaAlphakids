@@ -38,7 +38,8 @@ fun WordPuzzleScreen(
                 // Handle word completion - could navigate back or show success
                 showCameraOCR = false
                 // TODO: Update assignment status to completed
-            }
+            },
+            onFailedAttempt = {}
         )
     } else {
         Column(

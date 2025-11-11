@@ -27,6 +27,8 @@ import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +48,7 @@ fun CameraOCRScreen(
     targetWord: String,
     onBackClick: () -> Unit,
     onWordCompleted: () -> Unit,
+    onFailedAttempt: () -> Unit,
     viewModel: CameraOCRViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -108,12 +111,17 @@ fun CameraOCRScreen(
         }
     }
 
+    var lastStatus by remember { mutableStateOf<CameraScanStatus>(CameraScanStatus.Idle) }
+
     LaunchedEffect(status) {
         if (status is CameraScanStatus.Success) {
             WordHistoryStorage.saveCompletedWord(context, uiState.displayWord)
             onWordCompleted()
             viewModel.resetToIdle()
+        } else if (status is CameraScanStatus.Error && status != lastStatus) {
+            onFailedAttempt()
         }
+        lastStatus = status
     }
 }
 

@@ -18,4 +18,14 @@ interface AssignmentRepository {
         difficulty: String? = null,
         query: String? = null
     ): Flow<List<WordAssignment>>
+
+    fun observePendingAssignments(studentId: String): Flow<List<WordAssignment>>
+
+    suspend fun decrementAssignmentAttempts(assignmentId: String, minimum: Int = 0): Result<Int>
+
+    suspend fun completeAssignment(
+        assignmentId: String,
+        studentId: String,
+        rewardCoins: Int
+    ): Result<Unit>
 }

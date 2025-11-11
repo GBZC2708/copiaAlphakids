@@ -126,7 +126,7 @@ class DemoDataSeeder @Inject constructor(
         words.forEachIndexed { index, (texto, coins, categoria) ->
             val data = mapOf(
                 "texto" to texto,
-                "rewardCoins" to coins,
+                "reward_coins" to coins,
                 "categoriaId" to categoria,
                 "docenteId" to "docente_demo",
                 "orden" to index

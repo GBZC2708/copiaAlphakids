@@ -124,6 +124,8 @@ class AssignWordViewModel @Inject constructor(
                 palabraAudioUrl = word.audioUrl,
                 palabraDificultad = word.nivelDificultad,
                 estudianteNombre = student.nombre,
+                rewardCoins = word.rewardCoins,
+                attemptsRemaining = 3,
                 fechaAsignacionMillis = null,
                 fechaLimiteMillis = null,
                 estado = "PENDIENTE"
