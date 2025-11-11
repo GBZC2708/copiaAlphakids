@@ -31,7 +31,7 @@ import com.example.alphakids.ui.screens.teacher.home.TeacherHomeScreen
 import com.example.alphakids.ui.screens.teacher.students.TeacherStudentsScreen
 import com.example.alphakids.ui.screens.teacher.students.StudentDetailScreen
 import com.example.alphakids.ui.screens.tutor.profile_selection.ProfileSelectionScreen
-import com.example.alphakids.ui.screens.tutor.home.StudentHomeScreen
+import com.example.alphakids.ui.screens.tutor.home.StudentTabsRoute
 import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryScreen
 import com.example.alphakids.ui.screens.tutor.achievements.StudentAchievementsScreen
 import com.example.alphakids.ui.screens.tutor.games.GameScreen
@@ -161,40 +161,34 @@ fun AppNavHost(
             )
         }
 
-        // Pantalla principal del estudiante (ORIGEN)
+        // Pantalla principal del estudiante (tabs)
         composable(
             route = Routes.HOME,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
             val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            
-            // Log para debug - verificar qué studentId se está usando
-            LaunchedEffect(studentId) {
-                android.util.Log.d("AppNavHost", "StudentHomeScreen loaded with studentId: $studentId")
-            }
-            
-            val studentName = if (studentId == "sofia_id") "Sofía" else "Estudiante"
 
-            StudentHomeScreen(
-                studentName = studentName,
-                onLogoutClick = onLogout,
+            StudentTabsRoute(
                 onBackClick = { navController.popBackStack() },
-                onPlayClick = {
-                    android.util.Log.d("AppNavHost", "Play button clicked, navigating with studentId: $studentId")
-                    navController.navigate(Routes.assignedWordsRoute(studentId))
-                }, // <-- NAVEGA A PALABRAS ASIGNADAS
-                onDictionaryClick = { navigateToStudentBottomNav(Routes.dictionaryRoute(studentId)) },
-                onAchievementsClick = { navigateToStudentBottomNav(Routes.achievementsRoute(studentId)) },
-                onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
-                onBottomNavClick = { route ->
-                    val targetRoute = when (route) {
-                        "store" -> Routes.storeRoute(studentId)
-                        "pets" -> Routes.petsRoute(studentId)
-                        else -> Routes.homeRoute(studentId)
-                    }
-                    navigateToStudentBottomNav(targetRoute)
+                onLogoutClick = onLogout,
+                onSettingsClick = { targetId ->
+                    navController.navigate(Routes.editStudentProfileRoute(targetId))
                 },
-                currentRoute = "home"
+                onAssignmentsClick = { targetId ->
+                    navController.navigate(Routes.assignedWordsRoute(targetId))
+                },
+                onDictionaryClick = { targetId ->
+                    navigateToStudentBottomNav(Routes.dictionaryRoute(targetId))
+                },
+                onStorePetsClick = { targetId ->
+                    navigateToStudentBottomNav(Routes.storePetsRoute(targetId))
+                },
+                onStoreAccessoriesClick = { targetId ->
+                    navigateToStudentBottomNav(Routes.storeAccessoriesRoute(targetId))
+                },
+                onPetsClick = { targetId ->
+                    navigateToStudentBottomNav(Routes.petsRoute(targetId))
+                }
             )
         }
 
