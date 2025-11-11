@@ -1,7 +1,10 @@
 package com.example.alphakids.data.di
 
+import android.app.Application
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,9 +17,18 @@ object FirebaseModule {
 
     @Provides
     @Singleton
+    fun provideFirebaseApp(application: Application): FirebaseApp = FirebaseApp.initializeApp(application)
+        ?: FirebaseApp.getInstance()
+
+    @Provides
+    @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
 
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
 }
