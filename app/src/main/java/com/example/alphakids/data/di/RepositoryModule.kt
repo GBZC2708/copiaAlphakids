@@ -4,15 +4,20 @@ import com.example.alphakids.data.firebase.repository.AssignmentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.AuthRepositoryImpl
 import com.example.alphakids.data.firebase.repository.StudentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.WordRepositoryImpl
+import com.example.alphakids.data.firebase.FirestoreTransactionHelper
+import com.example.alphakids.data.tts.AndroidTtsService
+import com.example.alphakids.data.tts.TtsService
 import com.example.alphakids.domain.repository.AssignmentRepository
 import com.example.alphakids.domain.repository.AuthRepository
 import com.example.alphakids.domain.repository.StudentRepository
 import com.example.alphakids.domain.repository.WordRepository
+import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -42,5 +47,21 @@ object RepositoryModule {
     @Singleton
     fun provideAssignmentRepository(db: FirebaseFirestore): AssignmentRepository {
         return AssignmentRepositoryImpl(db)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTtsService(
+        @ApplicationContext context: Context
+    ): TtsService {
+        return AndroidTtsService(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirestoreTransactionHelper(
+        db: FirebaseFirestore
+    ): FirestoreTransactionHelper {
+        return FirestoreTransactionHelper(db)
     }
 }

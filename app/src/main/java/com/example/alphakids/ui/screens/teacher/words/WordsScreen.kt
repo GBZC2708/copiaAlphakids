@@ -62,7 +62,7 @@ fun WordsScreen(
 ) {
     val teacherBottomNavItems = listOf(
         BottomNavItem("home", "Inicio", Icons.Rounded.Home),
-        BottomNavItem("students", "Alumnos", Icons.Rounded.Groups),
+        BottomNavItem("students", "Estudiantes", Icons.Rounded.Groups),
         BottomNavItem("words", "Palabras", Icons.Rounded.Spellcheck)
     )
 
