@@ -32,7 +32,8 @@ import com.example.alphakids.ui.screens.teacher.students.TeacherStudentsScreen
 import com.example.alphakids.ui.screens.teacher.students.StudentDetailScreen
 import com.example.alphakids.ui.screens.tutor.profile_selection.ProfileSelectionScreen
 import com.example.alphakids.ui.screens.tutor.home.StudentTabsRoute
-import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryScreen
+import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryRoute
+import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryViewModel
 import com.example.alphakids.ui.screens.tutor.achievements.StudentAchievementsScreen
 import com.example.alphakids.ui.screens.tutor.games.GameScreen
 import com.example.alphakids.ui.screens.tutor.games.CameraScreen
@@ -291,11 +292,10 @@ fun AppNavHost(
             route = Routes.DICTIONARY,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentDictionaryScreen(
-                onLogoutClick = onLogout,
+            val studentId = backStackEntry.arguments?.getString("studentId").orEmpty()
+            StudentDictionaryRoute(
                 onBackClick = { navController.popBackStack() },
-                onWordClick = { },
+                onLogoutClick = onLogout,
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
                 onBottomNavClick = { route ->
                     val targetRoute = when (route) {
@@ -305,6 +305,9 @@ fun AppNavHost(
                         else -> Routes.dictionaryRoute(studentId)
                     }
                     navigateToStudentBottomNav(targetRoute)
+                },
+                onWordScanRequest = { sid, wordId, targetWord ->
+                    navController.navigate(Routes.dictionaryCameraOCRRoute(sid, wordId, targetWord))
                 },
                 currentRoute = "dictionary"
             )
@@ -367,6 +370,35 @@ fun AppNavHost(
                 },
                 onFailedAttempt = {
                     assignmentsViewModel.onAssignmentScanFailed(assignmentId)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.DICTIONARY_CAMERA_OCR,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("wordId") { type = NavType.StringType },
+                navArgument("targetWord") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId").orEmpty()
+            val wordId = backStackEntry.arguments?.getString("wordId").orEmpty()
+            val targetWord = backStackEntry.arguments?.getString("targetWord").orEmpty()
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Routes.DICTIONARY)
+            }
+            val dictionaryViewModel: StudentDictionaryViewModel = hiltViewModel(parentEntry)
+            CameraOCRScreen(
+                assignmentId = wordId,
+                targetWord = targetWord,
+                onBackClick = { navController.popBackStack() },
+                onWordCompleted = {
+                    dictionaryViewModel.onWordScanSucceeded(wordId)
+                    navController.popBackStack()
+                },
+                onFailedAttempt = {
+                    dictionaryViewModel.onWordScanFailed()
                 }
             )
         }

@@ -3,6 +3,7 @@ package com.example.alphakids.data.di
 import com.example.alphakids.data.firebase.repository.AchievementRepositoryImpl
 import com.example.alphakids.data.firebase.repository.AssignmentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.AuthRepositoryImpl
+import com.example.alphakids.data.firebase.repository.DictionaryRepositoryImpl
 import com.example.alphakids.data.firebase.repository.StoreRepositoryImpl
 import com.example.alphakids.data.firebase.repository.StudentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.TeacherRepositoryImpl
@@ -13,6 +14,7 @@ import com.example.alphakids.data.tts.TtsService
 import com.example.alphakids.domain.repository.AchievementRepository
 import com.example.alphakids.domain.repository.AssignmentRepository
 import com.example.alphakids.domain.repository.AuthRepository
+import com.example.alphakids.domain.repository.DictionaryRepository
 import com.example.alphakids.domain.repository.StoreRepository
 import com.example.alphakids.domain.repository.StudentRepository
 import com.example.alphakids.domain.repository.TeacherRepository
@@ -65,6 +67,15 @@ object RepositoryModule {
     @Singleton
     fun provideAchievementRepository(db: FirebaseFirestore): AchievementRepository {
         return AchievementRepositoryImpl(db)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDictionaryRepository(
+        db: FirebaseFirestore,
+        transactionHelper: FirestoreTransactionHelper
+    ): DictionaryRepository {
+        return DictionaryRepositoryImpl(db, transactionHelper)
     }
 
     @Provides

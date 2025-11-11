@@ -157,20 +157,32 @@ class DemoDataSeeder @Inject constructor(
     }
 
     private suspend fun seedDictionary() {
-        val entries = listOf(
-            "gato" to "El gato duerme",
-            "perro" to "El perro ladra",
-            "loro" to "El loro habla",
-            "rojo" to "El color rojo",
-            "azul" to "El cielo azul",
-            "libro" to "Leo un libro"
+        data class DictionarySeed(
+            val word: String,
+            val usage: String,
+            val reward: Int,
+            val category: String,
+            val difficulty: String
         )
-        entries.forEach { (word, usage) ->
-            firestore.collection("diccionarioDocente").document(word).set(
+
+        val entries = listOf(
+            DictionarySeed("gato", "El gato duerme", 15, "Animales", "Fácil"),
+            DictionarySeed("perro", "El perro ladra", 15, "Animales", "Fácil"),
+            DictionarySeed("loro", "El loro habla", 20, "Animales", "Intermedio"),
+            DictionarySeed("rojo", "El color rojo", 10, "Colores", "Fácil"),
+            DictionarySeed("azul", "El cielo azul", 10, "Colores", "Fácil"),
+            DictionarySeed("libro", "Leo un libro", 18, "Objetos", "Intermedio")
+        )
+
+        entries.forEach { entry ->
+            firestore.collection("diccionarioDocente").document(entry.word).set(
                 mapOf(
-                    "palabra" to word,
-                    "uso" to usage,
-                    "docenteId" to "docente_demo"
+                    "palabra" to entry.word,
+                    "uso" to entry.usage,
+                    "docenteId" to "docente_demo",
+                    "reward_coins" to entry.reward,
+                    "categoria" to entry.category,
+                    "nivelDificultad" to entry.difficulty
                 ),
                 SetOptions.merge()
             ).await()
