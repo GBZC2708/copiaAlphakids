@@ -55,6 +55,7 @@ fun StudentTabsRoute(
     onDictionaryClick: (String) -> Unit,
     onStorePetsClick: (String) -> Unit,
     onStoreAccessoriesClick: (String) -> Unit,
+    onStoreConsumablesClick: (String) -> Unit,
     onPetsClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StudentTabsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
@@ -71,6 +72,7 @@ fun StudentTabsRoute(
         onDictionaryClick = onDictionaryClick,
         onStorePetsClick = onStorePetsClick,
         onStoreAccessoriesClick = onStoreAccessoriesClick,
+        onStoreConsumablesClick = onStoreConsumablesClick,
         onPetsClick = onPetsClick
     )
 }
@@ -86,6 +88,7 @@ private fun StudentTabsScreen(
     onDictionaryClick: (String) -> Unit,
     onStorePetsClick: (String) -> Unit,
     onStoreAccessoriesClick: (String) -> Unit,
+    onStoreConsumablesClick: (String) -> Unit,
     onPetsClick: (String) -> Unit
 ) {
     when (uiState) {
@@ -102,6 +105,7 @@ private fun StudentTabsScreen(
             onDictionaryClick = onDictionaryClick,
             onStorePetsClick = onStorePetsClick,
             onStoreAccessoriesClick = onStoreAccessoriesClick,
+            onStoreConsumablesClick = onStoreConsumablesClick,
             onPetsClick = onPetsClick
         )
     }
@@ -118,6 +122,7 @@ private fun StudentTabsContent(
     onDictionaryClick: (String) -> Unit,
     onStorePetsClick: (String) -> Unit,
     onStoreAccessoriesClick: (String) -> Unit,
+    onStoreConsumablesClick: (String) -> Unit,
     onPetsClick: (String) -> Unit
 ) {
     val tabNavController = rememberNavController()
@@ -180,6 +185,7 @@ private fun StudentTabsContent(
                     onDictionaryClick = onDictionaryClick,
                     onStorePetsClick = onStorePetsClick,
                     onStoreAccessoriesClick = onStoreAccessoriesClick,
+                    onStoreConsumablesClick = onStoreConsumablesClick,
                     onPetsClick = onPetsClick
                 )
             }
@@ -195,6 +201,7 @@ private fun StudentTabsNavHost(
     onDictionaryClick: (String) -> Unit,
     onStorePetsClick: (String) -> Unit,
     onStoreAccessoriesClick: (String) -> Unit,
+    onStoreConsumablesClick: (String) -> Unit,
     onPetsClick: (String) -> Unit
 ) {
     NavHost(
@@ -222,7 +229,8 @@ private fun StudentTabsNavHost(
             StudentStoreTab(
                 studentName = header.fullName,
                 onStorePetsClick = { onStorePetsClick(header.id) },
-                onStoreAccessoriesClick = { onStoreAccessoriesClick(header.id) }
+                onStoreAccessoriesClick = { onStoreAccessoriesClick(header.id) },
+                onStoreConsumablesClick = { onStoreConsumablesClick(header.id) }
             )
         }
         composable(StudentTab.Pets.route) {
@@ -369,7 +377,8 @@ private fun StudentAchievementsTab(studentName: String) {
 private fun StudentStoreTab(
     studentName: String,
     onStorePetsClick: () -> Unit,
-    onStoreAccessoriesClick: () -> Unit
+    onStoreAccessoriesClick: () -> Unit,
+    onStoreConsumablesClick: () -> Unit
 ) {
     StudentTabContainer {
         Text(
@@ -389,6 +398,10 @@ private fun StudentStoreTab(
         Spacer(modifier = Modifier.padding(vertical = 4.dp))
         Button(onClick = onStoreAccessoriesClick, modifier = Modifier.fillMaxWidth()) {
             Text(text = "Ver accesorios")
+        }
+        Spacer(modifier = Modifier.padding(vertical = 4.dp))
+        Button(onClick = onStoreConsumablesClick, modifier = Modifier.fillMaxWidth()) {
+            Text(text = "Ver consumibles")
         }
     }
 }

@@ -44,9 +44,8 @@ import com.example.alphakids.ui.screens.tutor.games.MyGamesScreen
 import com.example.alphakids.ui.screens.tutor.games.AssignedWordsScreen
 import com.example.alphakids.ui.screens.tutor.games.WordPuzzleScreen
 import com.example.alphakids.ui.screens.tutor.pets.StudentPetsScreen
-import com.example.alphakids.ui.screens.tutor.store.StudentAccessoriesStoreScreen
-import com.example.alphakids.ui.screens.tutor.store.StudentPetsStoreScreen
-import com.example.alphakids.ui.screens.tutor.store.StudentStoreScreen
+import com.example.alphakids.ui.screens.student.store.StoreSection
+import com.example.alphakids.ui.screens.student.store.StudentStoreRoute
 import com.example.alphakids.ui.screens.tutor.pets.StudentPetDetailScreen
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsRoute
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsViewModel
@@ -188,6 +187,9 @@ fun AppNavHost(
                 },
                 onStoreAccessoriesClick = { targetId ->
                     navigateToStudentBottomNav(Routes.storeAccessoriesRoute(targetId))
+                },
+                onStoreConsumablesClick = { targetId ->
+                    navigateToStudentBottomNav(Routes.storeConsumablesRoute(targetId))
                 },
                 onPetsClick = { targetId ->
                     navigateToStudentBottomNav(Routes.petsRoute(targetId))
@@ -614,10 +616,10 @@ fun AppNavHost(
             route = Routes.STORE,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentStoreScreen(
-                onLogoutClick = onLogout,
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: return@composable
+            StudentStoreRoute(
                 onBackClick = { navController.popBackStack() },
+                onLogoutClick = onLogout,
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
                 onBottomNavClick = { route ->
                     val targetRoute = when (route) {
@@ -627,19 +629,17 @@ fun AppNavHost(
                     }
                     navigateToStudentBottomNav(targetRoute)
                 },
-                currentRoute = "store",
-                onPetsStoreClick = { navController.navigate(Routes.storePetsRoute(studentId)) },
-                onAccessoriesStoreClick = { navController.navigate(Routes.storeAccessoriesRoute(studentId)) }
+                currentBottomRoute = "store",
+                initialSection = StoreSection.PETS
             )
         }
 
-        // Subrutas de Tienda: Mascotas
         composable(
             route = Routes.STORE_PETS,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentPetsStoreScreen(
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: return@composable
+            StudentStoreRoute(
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = onLogout,
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
@@ -651,21 +651,17 @@ fun AppNavHost(
                     }
                     navigateToStudentBottomNav(targetRoute)
                 },
-                currentRoute = "store",
-                studentId = studentId,
-                dogImageResId = com.example.alphakids.R.drawable.ic_happy_dog,
-                catImageResId = com.example.alphakids.R.drawable.ic_happy_cat,
-                coins = 123
+                currentBottomRoute = "store",
+                initialSection = StoreSection.PETS
             )
         }
 
-        // Subrutas de Tienda: Accesorios
         composable(
             route = Routes.STORE_ACCESSORIES,
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentAccessoriesStoreScreen(
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: return@composable
+            StudentStoreRoute(
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = onLogout,
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
@@ -677,12 +673,30 @@ fun AppNavHost(
                     }
                     navigateToStudentBottomNav(targetRoute)
                 },
-                currentRoute = "store",
-                studentId = studentId,
-                coins = 123,
-                croquetasImageResId = com.example.alphakids.R.drawable.ic_kibble_dog_cat,
-                huesoImageResId = com.example.alphakids.R.drawable.ic_bone_dog,
-                pescadoImageResId = com.example.alphakids.R.drawable.ic_fish_cat
+                currentBottomRoute = "store",
+                initialSection = StoreSection.ACCESSORIES
+            )
+        }
+
+        composable(
+            route = Routes.STORE_CONSUMABLES,
+            arguments = listOf(navArgument("studentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: return@composable
+            StudentStoreRoute(
+                onBackClick = { navController.popBackStack() },
+                onLogoutClick = onLogout,
+                onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
+                onBottomNavClick = { route ->
+                    val targetRoute = when (route) {
+                        "home" -> Routes.homeRoute(studentId)
+                        "pets" -> Routes.petsRoute(studentId)
+                        else -> Routes.storeRoute(studentId)
+                    }
+                    navigateToStudentBottomNav(targetRoute)
+                },
+                currentBottomRoute = "store",
+                initialSection = StoreSection.CONSUMABLES
             )
         }
 
