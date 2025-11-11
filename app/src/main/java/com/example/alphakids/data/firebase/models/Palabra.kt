@@ -18,6 +18,9 @@ data class Palabra(
     val imagen: String = "",
     val audio: String = "",
 
+    @get:PropertyName("reward_coins") @set:PropertyName("reward_coins")
+    var rewardCoins: Int = 0,
+
     @get:PropertyName("fechaCreacion")
     @ServerTimestamp
     val fechaCreacion: Timestamp? = null,

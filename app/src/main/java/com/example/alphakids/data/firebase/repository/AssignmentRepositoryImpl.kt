@@ -8,8 +8,10 @@ import com.example.alphakids.domain.models.WordAssignment
 import com.example.alphakids.domain.repository.AssignmentRepository
 import com.example.alphakids.domain.repository.AssignmentResult
 import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.snapshots
 import com.google.firebase.firestore.toObjects
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlin.math.max
 import javax.inject.Inject
 
 class AssignmentRepositoryImpl @Inject constructor(
@@ -109,4 +112,87 @@ class AssignmentRepositoryImpl @Inject constructor(
             Log.e("AssignmentRepo", "Error fetching assignments for student $studentId", exception)
             emit(emptyList())
         }
+
+    override fun observePendingAssignments(studentId: String): Flow<List<WordAssignment>> {
+        return asignacionesCol
+            .whereEqualTo("id_estudiante", studentId)
+            .whereEqualTo("estado", "PENDIENTE")
+            .orderBy("fecha_asignacion", Query.Direction.DESCENDING)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.toObjects(AsignacionPalabra::class.java).map { dto ->
+                    WordAssignmentMapper.toDomain(dto)
+                }
+            }
+            .catch { exception ->
+                Log.e("AssignmentRepo", "Error observing pending assignments for student $studentId", exception)
+                emit(emptyList())
+            }
+    }
+
+    override suspend fun decrementAssignmentAttempts(assignmentId: String, minimum: Int): Result<Int> {
+        return try {
+            val updatedAttempts = db.runTransaction { transaction ->
+                val assignmentRef = asignacionesCol.document(assignmentId)
+                val snapshot = transaction.get(assignmentRef)
+                if (!snapshot.exists()) {
+                    throw IllegalStateException("Asignación no encontrada")
+                }
+                val current = (snapshot.getLong("intentos_restantes") ?: DEFAULT_ATTEMPTS.toLong()).toInt()
+                val safeMinimum = max(minimum, 0)
+                if (current <= safeMinimum) {
+                    transaction.update(assignmentRef, "intentos_restantes", safeMinimum)
+                    safeMinimum
+                } else {
+                    val newAttempts = (current - 1).coerceAtLeast(safeMinimum)
+                    transaction.update(assignmentRef, "intentos_restantes", newAttempts)
+                    newAttempts
+                }
+            }.await()
+            Result.success(updatedAttempts)
+        } catch (e: Exception) {
+            Log.e("AssignmentRepo", "Error decrementing attempts for assignment $assignmentId", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun completeAssignment(
+        assignmentId: String,
+        studentId: String,
+        rewardCoins: Int
+    ): Result<Unit> {
+        return try {
+            db.runTransaction { transaction ->
+                val assignmentRef = asignacionesCol.document(assignmentId)
+                val studentRef = estudiantesCol.document(studentId)
+                val snapshot = transaction.get(assignmentRef)
+                if (!snapshot.exists()) {
+                    throw IllegalStateException("Asignación no encontrada")
+                }
+                val estadoActual = snapshot.getString("estado") ?: "PENDIENTE"
+                if (estadoActual != "COMPLETADA") {
+                    val attempts = (snapshot.getLong("intentos_restantes") ?: DEFAULT_ATTEMPTS.toLong()).toInt()
+                    val normalizedAttempts = attempts.coerceAtLeast(0)
+                    val updates = mapOf(
+                        "estado" to "COMPLETADA",
+                        "intentos_restantes" to normalizedAttempts,
+                        "fecha_completado" to FieldValue.serverTimestamp()
+                    )
+                    transaction.set(assignmentRef, updates, SetOptions.merge())
+                    if (rewardCoins > 0) {
+                        transaction.update(studentRef, "coins", FieldValue.increment(rewardCoins.toLong()))
+                    }
+                }
+                null
+            }.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AssignmentRepo", "Error completing assignment $assignmentId", e)
+            Result.failure(e)
+        }
+    }
+
+    companion object {
+        private const val DEFAULT_ATTEMPTS = 3
+    }
 }

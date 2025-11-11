@@ -10,6 +10,8 @@ data class WordAssignment(
     val palabraAudioUrl: String?,
     val palabraDificultad: String,
     val estudianteNombre: String?,
+    val rewardCoins: Int,
+    val attemptsRemaining: Int?,
     val fechaAsignacionMillis: Long?,
     val fechaLimiteMillis: Long?,
     val estado: String

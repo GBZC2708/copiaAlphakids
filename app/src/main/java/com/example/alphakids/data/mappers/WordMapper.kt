@@ -13,6 +13,7 @@ object WordMapper {
             nivelDificultad = dto.nivelDificultad,
             imagenUrl = dto.imagen,
             audioUrl = dto.audio,
+            rewardCoins = dto.rewardCoins,
             fechaCreacionMillis = dto.fechaCreacion?.toDate()?.time,
             creadoPor = dto.creadoPor
         )
@@ -26,6 +27,7 @@ object WordMapper {
             nivelDificultad = domain.nivelDificultad,
             imagen = domain.imagenUrl,
             audio = domain.audioUrl,
+            rewardCoins = domain.rewardCoins,
             creadoPor = domain.creadoPor
             // fechaCreacion se establece por @ServerTimestamp
         )

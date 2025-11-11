@@ -3,6 +3,7 @@ package com.example.alphakids.ui.screens.tutor.games
 import androidx.lifecycle.ViewModel
 import com.example.alphakids.data.tts.TtsService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.Normalizer
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +70,7 @@ class CameraOCRViewModel @Inject constructor(
         if (_uiState.value.status !is CameraScanStatus.Scanning) return
         val normalizedDetected = normalize(rawText)
         val target = _uiState.value.targetWord
-        val matched = normalizedDetected.contains(target) && target.isNotEmpty()
+        val matched = normalizedDetected == target && target.isNotEmpty()
         val message = when {
             matched -> "¡Bien hecho! La palabra es ${_uiState.value.displayWord}"
             normalizedDetected.isBlank() -> "No se detectó texto"
@@ -113,8 +114,11 @@ class CameraOCRViewModel @Inject constructor(
     }
 
     private fun normalize(value: String): String {
-        return value.trim()
+        val cleaned = Normalizer.normalize(value, Normalizer.Form.NFD)
+            .replace("\\p{Mn}+".toRegex(), "")
+            .replace("[^A-Za-z0-9 ]".toRegex(), " ")
+            .trim()
             .replace("\\s+".toRegex(), " ")
-            .uppercase(Locale.getDefault())
+        return cleaned.uppercase(Locale.getDefault())
     }
 }

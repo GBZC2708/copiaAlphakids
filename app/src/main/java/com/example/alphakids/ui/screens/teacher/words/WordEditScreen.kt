@@ -136,12 +136,19 @@ fun WordEditScreen(
                             )
                             viewModel.updateWord(updatedWord)
                         } else {
+                            val reward = when (dificultad.lowercase()) {
+                                "fácil" -> 10
+                                "medio" -> 15
+                                "difícil" -> 20
+                                else -> 12
+                            }
                             viewModel.createWord(
                                 texto = texto,
                                 categoria = categoria,
                                 nivelDificultad = dificultad,
                                 imagenUrl = "url_imagen_mock",
-                                audioUrl = "url_audio_mock"
+                                audioUrl = "url_audio_mock",
+                                rewardCoins = reward
                             )
                         }
                     }

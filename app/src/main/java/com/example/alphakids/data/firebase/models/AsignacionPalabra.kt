@@ -24,6 +24,10 @@ data class AsignacionPalabra(
     var palabraDificultad: String = "",
     @get:PropertyName("estudiante_nombre") @set:PropertyName("estudiante_nombre")
     var estudianteNombre: String? = null,
+    @get:PropertyName("reward_coins") @set:PropertyName("reward_coins")
+    var rewardCoins: Int = 0,
+    @get:PropertyName("intentos_restantes") @set:PropertyName("intentos_restantes")
+    var intentosRestantes: Int? = null,
     @get:PropertyName("fecha_asignacion") @ServerTimestamp @set:PropertyName("fecha_asignacion")
     var fechaAsignacion: Timestamp? = null,
     @get:PropertyName("fecha_limite") @set:PropertyName("fecha_limite")

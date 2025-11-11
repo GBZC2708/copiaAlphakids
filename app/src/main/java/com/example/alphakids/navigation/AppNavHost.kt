@@ -40,7 +40,6 @@ import com.example.alphakids.ui.screens.profile.EditProfileScreen
 import com.example.alphakids.ui.screens.tutor.studentprofile.CreateStudentProfileScreen
 import com.example.alphakids.ui.screens.tutor.studentprofile.EditStudentProfileScreen
 import com.example.alphakids.ui.screens.tutor.games.MyGamesScreen
-import com.example.alphakids.ui.screens.tutor.games.GameWordsScreen
 import com.example.alphakids.ui.screens.tutor.games.AssignedWordsScreen
 import com.example.alphakids.ui.screens.tutor.games.WordPuzzleScreen
 import com.example.alphakids.ui.screens.tutor.pets.StudentPetsScreen
@@ -48,6 +47,9 @@ import com.example.alphakids.ui.screens.tutor.store.StudentAccessoriesStoreScree
 import com.example.alphakids.ui.screens.tutor.store.StudentPetsStoreScreen
 import com.example.alphakids.ui.screens.tutor.store.StudentStoreScreen
 import com.example.alphakids.ui.screens.tutor.pets.StudentPetDetailScreen
+import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsRoute
+import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsViewModel
+import com.example.alphakids.ui.screens.tutor.games.CameraOCRScreen
 
 @Composable
 fun AppNavHost(
@@ -208,12 +210,13 @@ fun AppNavHost(
         // 3. Pantalla de Palabras Asignadas para Jugar (GAME_WORDS - DESTINO)
         composable(
             route = Routes.GAME_WORDS,
-            arguments = listOf(navArgument("studentId") { type = NavType.StringType }) // <-- RECIBE EL ID
+            arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) {
-            // El VM ahora lo obtendrá de SavedStateHandle
-            GameWordsScreen(
+            StudentAssignmentsRoute(
                 onBackClick = { navController.popBackStack() },
-                onWordClick = { navController.navigate(Routes.GAME) }
+                onOpenCamera = { assignmentId, word ->
+                    navController.navigate(Routes.cameraOCRRoute(assignmentId, word))
+                }
             )
         }
 
@@ -338,6 +341,33 @@ fun AppNavHost(
                 onCloseNotificationClick = { },
                 onFlashClick = { },
                 onFlipCameraClick = { }
+            )
+        }
+
+        composable(
+            route = Routes.CAMERA_OCR,
+            arguments = listOf(
+                navArgument("assignmentId") { type = NavType.StringType },
+                navArgument("targetWord") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val assignmentId = backStackEntry.arguments?.getString("assignmentId").orEmpty()
+            val targetWord = backStackEntry.arguments?.getString("targetWord").orEmpty()
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Routes.GAME_WORDS)
+            }
+            val assignmentsViewModel: StudentAssignmentsViewModel = hiltViewModel(parentEntry)
+            CameraOCRScreen(
+                assignmentId = assignmentId,
+                targetWord = targetWord,
+                onBackClick = { navController.popBackStack() },
+                onWordCompleted = {
+                    assignmentsViewModel.onAssignmentScanSucceeded(assignmentId)
+                    navController.popBackStack()
+                },
+                onFailedAttempt = {
+                    assignmentsViewModel.onAssignmentScanFailed(assignmentId)
+                }
             )
         }
 

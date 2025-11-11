@@ -6,6 +6,8 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import java.util.Date
 
+private const val DEFAULT_ATTEMPTS = 3
+
 object WordAssignmentMapper {
 
     fun toDomain(dto: AsignacionPalabra): WordAssignment {
@@ -19,6 +21,8 @@ object WordAssignmentMapper {
             palabraAudioUrl = dto.palabraAudio,
             palabraDificultad = dto.palabraDificultad,
             estudianteNombre = dto.estudianteNombre,
+            rewardCoins = dto.rewardCoins.coerceAtLeast(0),
+            attemptsRemaining = (dto.intentosRestantes ?: DEFAULT_ATTEMPTS).coerceAtLeast(0),
             fechaAsignacionMillis = dto.fechaAsignacion?.toDate()?.time,
             fechaLimiteMillis = dto.fechaLimite?.toDate()?.time,
             estado = dto.estado
@@ -35,6 +39,8 @@ object WordAssignmentMapper {
             "palabra_audio" to model.palabraAudioUrl,
             "palabra_dificultad" to model.palabraDificultad.ifEmpty { "Desconocida" },
             "estudiante_nombre" to model.estudianteNombre,
+            "reward_coins" to model.rewardCoins.coerceAtLeast(0),
+            "intentos_restantes" to (model.attemptsRemaining ?: DEFAULT_ATTEMPTS).coerceAtLeast(0),
             "estado" to model.estado
         )
 
