@@ -2,6 +2,7 @@ package com.example.alphakids.data.di
 
 import com.example.alphakids.data.firebase.repository.AssignmentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.AuthRepositoryImpl
+import com.example.alphakids.data.firebase.repository.StoreRepositoryImpl
 import com.example.alphakids.data.firebase.repository.StudentRepositoryImpl
 import com.example.alphakids.data.firebase.repository.WordRepositoryImpl
 import com.example.alphakids.data.firebase.FirestoreTransactionHelper
@@ -9,6 +10,7 @@ import com.example.alphakids.data.tts.AndroidTtsService
 import com.example.alphakids.data.tts.TtsService
 import com.example.alphakids.domain.repository.AssignmentRepository
 import com.example.alphakids.domain.repository.AuthRepository
+import com.example.alphakids.domain.repository.StoreRepository
 import com.example.alphakids.domain.repository.StudentRepository
 import com.example.alphakids.domain.repository.WordRepository
 import android.content.Context
@@ -47,6 +49,15 @@ object RepositoryModule {
     @Singleton
     fun provideAssignmentRepository(db: FirebaseFirestore): AssignmentRepository {
         return AssignmentRepositoryImpl(db)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStoreRepository(
+        db: FirebaseFirestore,
+        transactionHelper: FirestoreTransactionHelper
+    ): StoreRepository {
+        return StoreRepositoryImpl(db, transactionHelper)
     }
 
     @Provides
