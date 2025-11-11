@@ -1,5 +1,6 @@
 package com.example.alphakids.data.firebase
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
@@ -18,7 +19,7 @@ class FirestoreTransactionHelper @Inject constructor(
             val snapshot = transaction.get(studentRef)
             val currentCoins = snapshot.getLong("coins") ?: 0L
             val updated = currentCoins + amount
-            transaction.update(studentRef, "coins", updated)
+            transaction.update(studentRef, "coins", FieldValue.increment(amount.toLong()))
             null
         }.await()
     }
@@ -44,7 +45,7 @@ class FirestoreTransactionHelper @Inject constructor(
                 "CONSUMABLE" -> handleConsumablePurchase(transaction, studentId, itemId, quantity)
                 else -> throw IllegalStateException("Tipo de ítem desconocido")
             }
-            transaction.update(studentRef, "coins", updatedCoins)
+            transaction.update(studentRef, "coins", FieldValue.increment(-totalCost.toLong()))
             null
         }.await()
     }
@@ -54,18 +55,11 @@ class FirestoreTransactionHelper @Inject constructor(
         firestore.runTransaction { transaction ->
             val inventoryRef = firestore.collection("estudianteInventario").document("${studentId}_$itemId")
             val snapshot = transaction.get(inventoryRef)
+            if (!snapshot.exists()) throw IllegalStateException("Inventario inexistente")
             val currentQty = snapshot.getLong("qty") ?: 0L
             val newQty = currentQty - quantity
             if (newQty < 0) throw IllegalStateException("Inventario insuficiente")
-            transaction.set(
-                inventoryRef,
-                mapOf(
-                    "estudianteId" to studentId,
-                    "itemId" to itemId,
-                    "qty" to newQty
-                ),
-                SetOptions.merge()
-            )
+            transaction.update(inventoryRef, "qty", FieldValue.increment(-quantity.toLong()))
             null
         }.await()
     }
@@ -124,14 +118,18 @@ class FirestoreTransactionHelper @Inject constructor(
         val snapshot = transaction.get(inventoryRef)
         val currentQty = snapshot.getLong("qty") ?: 0L
         val newQty = currentQty + quantity
-        transaction.set(
-            inventoryRef,
-            mapOf(
-                "estudianteId" to studentId,
-                "itemId" to itemId,
-                "qty" to newQty
-            ),
-            SetOptions.merge()
-        )
+        if (snapshot.exists()) {
+            transaction.update(inventoryRef, "qty", FieldValue.increment(quantity.toLong()))
+        } else {
+            transaction.set(
+                inventoryRef,
+                mapOf(
+                    "estudianteId" to studentId,
+                    "itemId" to itemId,
+                    "qty" to newQty
+                ),
+                SetOptions.merge()
+            )
+        }
     }
 }
