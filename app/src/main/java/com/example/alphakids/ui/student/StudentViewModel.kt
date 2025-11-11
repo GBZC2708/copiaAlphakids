@@ -3,6 +3,8 @@ package com.example.alphakids.ui.student
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.alphakids.data.firebase.models.Estudiante
+import com.example.alphakids.domain.models.Student
+import com.example.alphakids.domain.models.Teacher
 import com.example.alphakids.domain.usecases.CreateStudentUseCase
 import com.example.alphakids.domain.usecases.GetCurrentUserUseCase
 import com.example.alphakids.domain.usecases.GetStudentsUseCase
@@ -17,12 +19,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -45,24 +47,34 @@ class StudentViewModel @Inject constructor(
 
     private val editingStudentId = MutableStateFlow<String?>(null)
 
-    private val tutorIdFlow: Flow<String?> = getCurrentUserUseCase().map { it?.uid }
+    /** Flujo con el uid del tutor autenticado */
+    private val tutorIdFlow: Flow<String?> = getCurrentUserUseCase().map { user ->
+        user?.uid
+    }
 
+    /** Wrapper interno para manejar estados del fetch de estudiantes */
     private sealed interface StudentDataResult {
         object Loading : StudentDataResult
         data class Success(val data: List<Estudiante>) : StudentDataResult
         data class Error(val throwable: Throwable) : StudentDataResult
     }
 
+    /** Estudiantes del tutor actual como resultado con Loading/Error */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val studentsResult: StateFlow<StudentDataResult> = tutorIdFlow
         .flatMapLatest { tutorId ->
             if (tutorId.isNullOrEmpty()) {
-                flowOf(StudentDataResult.Error(IllegalStateException("No se encontró tutor activo.")))
+                flowOf<StudentDataResult>(
+                    StudentDataResult.Error(IllegalStateException("No se encontró tutor activo."))
+                )
             } else {
+                // Asumido: Flow<List<Estudiante>>
                 getStudentsUseCase(tutorId)
-                    .map<StudentDataResult> { StudentDataResult.Success(it) }
+                    .map { list: List<Estudiante> ->
+                        StudentDataResult.Success(list) as StudentDataResult
+                    }
                     .onStart { emit(StudentDataResult.Loading) }
-                    .catch { emit(StudentDataResult.Error(it)) }
+                    .catch { e -> emit(StudentDataResult.Error(e)) }
             }
         }
         .stateIn(
@@ -71,7 +83,7 @@ class StudentViewModel @Inject constructor(
             initialValue = StudentDataResult.Loading
         )
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    /** Lista cruda de Estudiante para quien la necesite */
     val students: StateFlow<List<Estudiante>> = studentsResult
         .map { result ->
             when (result) {
@@ -86,6 +98,7 @@ class StudentViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    /** Estado de UI para lista de estudiantes */
     val studentListUiState: StateFlow<StudentListUiState> = studentsResult
         .map { result ->
             when (result) {
@@ -108,50 +121,55 @@ class StudentViewModel @Inject constructor(
             initialValue = StudentListUiState.Loading
         )
 
+    /** Estado de UI para lista de docentes (usa domain.models.Teacher) */
     val teacherListUiState: StateFlow<TeacherListUiState> = observeTeachersUseCase()
-        .map<TeacherListUiState> { teachers ->
+        .map { teachers: List<Teacher> ->
             if (teachers.isEmpty()) {
                 TeacherListUiState.Empty
             } else {
-                TeacherListUiState.Success(
-                    teachers.map { teacher ->
-                        val fullName = listOf(teacher.nombre, teacher.apellido)
-                            .filter { it.isNotBlank() }
-                            .joinToString(" ")
-                            .ifBlank { "Docente" }
-                        TeacherListItem(
-                            id = teacher.id,
-                            fullName = fullName,
-                            institucionId = teacher.institucionId
-                        )
-                    }
-                )
+                val items: List<TeacherListItem> = teachers.map { teacher ->
+                    val fullName = listOf(teacher.nombre, teacher.apellido)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .ifBlank { "Docente" }
+
+                    val institucionId = teacher.institucionId ?: ""
+
+                    TeacherListItem(
+                        id = teacher.id,
+                        fullName = fullName,
+                        institucionId = institucionId
+                    )
+                }
+                TeacherListUiState.Success(items)
             }
         }
         .onStart { emit(TeacherListUiState.Loading) }
-        .catch { emit(TeacherListUiState.Error(it.message ?: "Error al cargar docentes.")) }
+        .catch { e -> emit(TeacherListUiState.Error(e.message ?: "Error al cargar docentes.")) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = TeacherListUiState.Loading
         )
 
+    /** Detalle del estudiante en edición (UI exige Estudiante) */
     @OptIn(ExperimentalCoroutinesApi::class)
     val studentDetailUiState: StateFlow<StudentDetailUiState> = editingStudentId
         .flatMapLatest { studentId ->
             if (studentId.isNullOrEmpty()) {
-                flowOf(StudentDetailUiState.Idle)
+                flowOf<StudentDetailUiState>(StudentDetailUiState.Idle)
             } else {
+                // ObserveStudentUseCase devuelve Flow<Student?> (domain)
                 observeStudentUseCase(studentId)
-                    .map<StudentDetailUiState> { estudiante ->
-                        if (estudiante == null) {
+                    .map { student: Student? ->
+                        if (student == null) {
                             StudentDetailUiState.Error("No se encontró el perfil.")
                         } else {
-                            StudentDetailUiState.Success(estudiante)
+                            StudentDetailUiState.Success(student.toDataEstudiante())
                         }
                     }
                     .onStart { emit(StudentDetailUiState.Loading) }
-                    .catch { emit(StudentDetailUiState.Error(it.message ?: "Error al cargar el perfil.")) }
+                    .catch { e -> emit(StudentDetailUiState.Error(e.message ?: "Error al cargar el perfil.")) }
             }
         }
         .stateIn(
@@ -186,13 +204,17 @@ class StudentViewModel @Inject constructor(
                 return@launch
             }
 
-            val selectedTeacher = observeTeacherByIdUseCase(docenteId).firstOrNull()
+            // domain.models.Teacher?
+            val selectedTeacher: Teacher? = observeTeacherByIdUseCase(docenteId).firstOrNull()
             if (selectedTeacher == null) {
                 _createUiState.value = StudentUiState.Error("El docente seleccionado no existe.")
                 return@launch
             }
 
+            val institucionIdResolved = selectedTeacher.institucionId ?: ""
+
             val nuevoEstudiante = Estudiante(
+                id = "",
                 nombre = nombre,
                 apellido = apellido,
                 edad = edad,
@@ -200,7 +222,7 @@ class StudentViewModel @Inject constructor(
                 seccion = seccion,
                 idTutor = currentUser.uid,
                 idDocente = docenteId,
-                idInstitucion = selectedTeacher.institucionId,
+                idInstitucion = institucionIdResolved,
                 coins = 0,
                 fotoPerfil = null
             )
@@ -239,19 +261,22 @@ class StudentViewModel @Inject constructor(
                 return@launch
             }
 
-            val existingStudent = observeStudentUseCase(studentId).firstOrNull()
+            val existingStudent: Student? = observeStudentUseCase(studentId).firstOrNull()
             if (existingStudent == null) {
                 _updateUiState.value = StudentUiState.Error("No se encontró el perfil.")
                 return@launch
             }
 
-            val selectedTeacher = observeTeacherByIdUseCase(docenteId).firstOrNull()
+            val selectedTeacher: Teacher? = observeTeacherByIdUseCase(docenteId).firstOrNull()
             if (selectedTeacher == null) {
                 _updateUiState.value = StudentUiState.Error("El docente seleccionado no existe.")
                 return@launch
             }
 
-            val updatedStudent = existingStudent.copy(
+            val institucionIdResolved = selectedTeacher.institucionId ?: ""
+
+            val updatedStudentData = Estudiante(
+                id = existingStudent.id,
                 nombre = nombre,
                 apellido = apellido,
                 edad = edad,
@@ -259,10 +284,12 @@ class StudentViewModel @Inject constructor(
                 seccion = seccion,
                 idTutor = currentUser.uid,
                 idDocente = docenteId,
-                idInstitucion = selectedTeacher.institucionId
+                idInstitucion = institucionIdResolved,
+                fotoPerfil = existingStudent.fotoPerfilUrl,
+                coins = existingStudent.coins
             )
 
-            val result = updateStudentUseCase(updatedStudent)
+            val result = updateStudentUseCase(updatedStudentData)
             if (result.isSuccess) {
                 _updateUiState.value = StudentUiState.Success(studentId)
             } else {
@@ -281,11 +308,13 @@ class StudentViewModel @Inject constructor(
         _updateUiState.value = StudentUiState.Idle
     }
 
+    /** Helpers de mapeo para UI */
     private fun Estudiante.toStudentSummary(): StudentSummaryUi {
         val fullName = listOf(nombre, apellido)
             .filter { it.isNotBlank() }
             .joinToString(" ")
             .ifBlank { nombre.ifBlank { "Estudiante" } }
+
         return StudentSummaryUi(
             id = id,
             fullName = fullName,
@@ -293,4 +322,21 @@ class StudentViewModel @Inject constructor(
             coins = coins
         )
     }
+
+    /** Convertir domain -> data para cumplir StudentDetailUiState.Success(Estudiante) */
+    private fun Student.toDataEstudiante(): Estudiante =
+        Estudiante(
+            id = id,
+            nombre = nombre,
+            apellido = apellido,
+            edad = edad,
+            grado = grado,
+            seccion = seccion,
+            idTutor = idTutor,
+            idDocente = idDocente,
+            idInstitucion = idInstitucion,
+            fotoPerfil = fotoPerfilUrl,
+            coins = coins
+            // fechaRegistro: lo maneja Firestore con @ServerTimestamp en data layer
+        )
 }

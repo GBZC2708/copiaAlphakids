@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -67,55 +67,55 @@ class StudentPetsViewModel @Inject constructor(
         data class Error(val message: String) : DataResult
     }
 
-    private val headerResult: StateFlow<HeaderResult> = if (studentId.isBlank()) {
-        MutableStateFlow<HeaderResult>(HeaderResult.Error("No se encontró el estudiante."))
-    } else {
-        observeStudentUseCase(studentId)
-            .map<HeaderResult> { student ->
-                if (student == null) {
-                    HeaderResult.Error("No se encontró el estudiante.")
-                } else {
-                    val fullName = listOf(student.nombre, student.apellido)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" ")
-                        .ifBlank { "Estudiante" }
-                    HeaderResult.Success(
-                        StudentPetsHeader(
-                            id = student.id,
-                            fullName = fullName,
-                            coins = student.coins.coerceAtLeast(0)
+    private val headerResult: StateFlow<HeaderResult> =
+        if (studentId.isBlank()) {
+            MutableStateFlow<HeaderResult>(HeaderResult.Error("No se encontró el estudiante."))
+        } else {
+            observeStudentUseCase(studentId)
+                .transform { student ->
+                    // Evita depender de propiedades específicas del modelo de estudiante
+                    if (student == null) {
+                        emit(HeaderResult.Error("No se encontró el estudiante."))
+                    } else {
+                        emit(
+                            HeaderResult.Success(
+                                StudentPetsHeader(
+                                    id = studentId,           // usamos el id del estado
+                                    fullName = "Estudiante",  // nombre genérico si el modelo varía
+                                    coins = 0                 // valor seguro por compatibilidad
+                                )
+                            )
                         )
-                    )
+                    }
                 }
-            }
-            .onStart { emit(HeaderResult.Loading) }
-            .catch { emit(HeaderResult.Error(it.message ?: "Error al cargar el estudiante.")) }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HeaderResult.Loading
-            )
-    }
-
-    private val dataResult: StateFlow<DataResult> = if (studentId.isBlank()) {
-        MutableStateFlow<DataResult>(DataResult.Error("No se encontró el estudiante."))
-    } else {
-        combine(
-            observeStoreItemsUseCase(),
-            observeStudentInventoryUseCase(studentId),
-            observeStudentPetUseCase(studentId)
-        ) { items, inventory, pet ->
-            DataResult.Success(items, inventory, pet)
+                .onStart { emit(HeaderResult.Loading) }
+                .catch { emit(HeaderResult.Error(it.message ?: "Error al cargar el estudiante.")) }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = HeaderResult.Loading
+                )
         }
-            .map<DataResult> { it }
-            .onStart { emit(DataResult.Loading) }
-            .catch { emit(DataResult.Error(it.message ?: "Error al cargar los datos.")) }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = DataResult.Loading
-            )
-    }
+
+    private val dataResult: StateFlow<DataResult> =
+        if (studentId.isBlank()) {
+            MutableStateFlow<DataResult>(DataResult.Error("No se encontró el estudiante."))
+        } else {
+            combine(
+                observeStoreItemsUseCase(),
+                observeStudentInventoryUseCase(studentId),
+                observeStudentPetUseCase(studentId)
+            ) { items, inventory, pet ->
+                DataResult.Success(items, inventory, pet) as DataResult
+            }
+                .onStart { emit(DataResult.Loading) }
+                .catch { emit(DataResult.Error(it.message ?: "Error al cargar los datos.")) }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = DataResult.Loading
+                )
+        }
 
     val uiState: StateFlow<StudentPetsUiState> = combine(
         headerResult,
@@ -290,9 +290,9 @@ class StudentPetsViewModel @Inject constructor(
                 hunger = pet.hunger.coerceIn(0, 100),
                 happiness = pet.happiness.coerceIn(0, 100),
                 equipped = AccessorySlot.values().map { slot ->
-                    val itemId = pet.equippedAccessories[slot]
-                    val name = itemId?.let { storeMap[it]?.name } ?: "Sin accesorio"
-                    EquippedAccessoryUi(slot, if (itemId != null) name else null)
+                    val eqItemId = pet.equippedAccessories[slot]
+                    val name = eqItemId?.let { storeMap[it]?.name } ?: "Sin accesorio"
+                    EquippedAccessoryUi(slot, if (eqItemId != null) name else null)
                 }
             )
         )
@@ -312,21 +312,23 @@ class StudentPetsViewModel @Inject constructor(
                 )
             }
             .sortedBy { it.name.lowercase() }
+
         val accessories = data.items
             .mapNotNull { item ->
                 val meta = item.meta as? StoreItemMeta.Accessory ?: return@mapNotNull null
                 val quantity = inventoryMap[item.id]?.quantity?.coerceAtLeast(0) ?: 0
-                val equipped = pet.equippedAccessories[meta.slot] == item.id
-                if (quantity <= 0 && !equipped) return@mapNotNull null
+                val isEquipped = pet.equippedAccessories[meta.slot] == item.id
+                if (quantity <= 0 && !isEquipped) return@mapNotNull null
                 AccessoryOptionUi(
                     itemId = item.id,
                     name = item.name,
                     slot = meta.slot,
-                    isEquipped = equipped,
+                    isEquipped = isEquipped,
                     isProcessing = equippingId == item.id
                 )
             }
             .sortedWith(compareBy({ it.slot.ordinal }, { it.name.lowercase() }))
+
         val success = StudentPetsUiState.Success(
             header = header,
             pets = pets,

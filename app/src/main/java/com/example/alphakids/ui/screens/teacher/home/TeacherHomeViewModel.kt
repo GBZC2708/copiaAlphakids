@@ -129,6 +129,7 @@ class TeacherHomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // En algunas versiones de coroutines, combine(vararg) usa un transform con Array<T>.
             combine(
                 headerFlow,
                 studentsFlow,
@@ -136,7 +137,13 @@ class TeacherHomeViewModel @Inject constructor(
                 _searchQuery,
                 _selectedGrade,
                 _errorMessage
-            ) { header, students, words, query, grade, error ->
+            ) { arr ->
+                val header = arr[0] as TeacherHomeHeader?
+                val students = arr[1] as List<Estudiante>
+                val words = arr[2] as List<Word>
+                val query = arr[3] as String
+                val grade = arr[4] as String?
+                val error = arr[5] as String?
                 toUiState(header, students, words, query, grade, error)
             }.collect { state ->
                 _uiState.value = state
@@ -197,7 +204,7 @@ class TeacherHomeViewModel @Inject constructor(
 
         val filtered = mappedStudents.filter { student ->
             val matchesQuery = normalizedQuery.isEmpty() ||
-                student.fullName.lowercase().contains(normalizedQuery)
+                    student.fullName.lowercase().contains(normalizedQuery)
             val matchesGrade = grade.isNullOrEmpty() || student.grade == grade
             matchesQuery && matchesGrade
         }

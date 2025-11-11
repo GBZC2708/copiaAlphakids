@@ -46,6 +46,7 @@ class StudentStoreViewModel @Inject constructor(
 
     private val processingItemId = MutableStateFlow<String?>(null)
 
+    // Result wrappers
     private sealed interface HeaderResult {
         data object Loading : HeaderResult
         data class Success(val header: StudentStoreHeader) : HeaderResult
@@ -62,80 +63,146 @@ class StudentStoreViewModel @Inject constructor(
         data class Error(val message: String) : StoreResult
     }
 
-    private val headerResult: StateFlow<HeaderResult> = if (studentId.isBlank()) {
-        MutableStateFlow<HeaderResult>(HeaderResult.Error("No se encontró el estudiante."))
-    } else {
-        observeStudentUseCase(studentId)
-            .map<HeaderResult> { student ->
-                if (student == null) {
-                    HeaderResult.Error("No se encontró el estudiante.")
-                } else {
-                    val fullName = listOf(student.nombre, student.apellido)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" ")
-                        .ifBlank { "Estudiante" }
-                    HeaderResult.Success(
-                        StudentStoreHeader(
-                            id = student.id,
-                            fullName = fullName,
-                            coins = student.coins.coerceAtLeast(0)
-                        )
-                    )
-                }
-            }
-            .onStart { emit(HeaderResult.Loading) }
-            .catch { emit(HeaderResult.Error(it.message ?: "Error al cargar el estudiante.")) }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HeaderResult.Loading
-            )
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Helpers sin kotlin-reflect para extraer datos con nombres variables
+    // ─────────────────────────────────────────────────────────────────────────────
+    private data class SafeStudent(
+        val id: String,
+        val fullName: String,
+        val coins: Int
+    )
+
+    private fun Any.getFieldValueOrNull(name: String): Any? {
+        return runCatching {
+            val cls = this::class.java
+            val field = cls.declaredFields.firstOrNull { it.name == name } ?: return null
+            field.isAccessible = true
+            field.get(this)
+        }.getOrNull()
     }
 
-    private val storeResult: StateFlow<StoreResult> = if (studentId.isBlank()) {
-        MutableStateFlow<StoreResult>(StoreResult.Error("No se encontró el estudiante."))
-    } else {
-        combine(
-            observeStoreItemsUseCase(),
-            observeStudentInventoryUseCase(studentId),
-            observeStudentPetUseCase(studentId)
-        ) { items, inventory, pet ->
-            StoreResult.Success(items, inventory, pet)
+    private fun Any.readString(vararg names: String): String? {
+        for (n in names) {
+            val v = getFieldValueOrNull(n)
+            if (v is String && v.isNotBlank()) return v
         }
-            .map<StoreResult> { it }
-            .onStart { emit(StoreResult.Loading) }
-            .catch { emit(StoreResult.Error(it.message ?: "Error al cargar la tienda.")) }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = StoreResult.Loading
-            )
+        return null
     }
 
+    private fun Any.readInt(vararg names: String): Int? {
+        for (n in names) {
+            when (val v = getFieldValueOrNull(n)) {
+                is Int -> return v
+                is Long -> return v.toInt()
+                is Double -> return v.toInt()
+                is Float -> return v.toInt()
+                is Number -> return v.toInt()
+                is String -> v.toIntOrNull()?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun toSafeStudent(raw: Any?, fallbackId: String): SafeStudent? {
+        if (raw == null) return null
+
+        val id = (raw.readString("id", "uid", "studentId", "documentId") ?: fallbackId).ifBlank { fallbackId }
+
+        val display = raw.readString(
+            "fullName", "displayName", "name", "nombreCompleto", "nombres"
+        )
+        val last = raw.readString("apellidos", "apellido", "lastName")
+        val combined = listOfNotNull(display, last).filter { it.isNotBlank() }.joinToString(" ")
+        val resolvedName = when {
+            combined.isNotBlank() -> combined
+            display?.isNotBlank() == true -> display
+            else -> "Estudiante"
+        }
+
+        val coins = raw.readInt("coins", "monedas", "walletCoins", "balance", "puntos") ?: 0
+
+        return SafeStudent(
+            id = id,
+            fullName = resolvedName,
+            coins = coins.coerceAtLeast(0)
+        )
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    // Header flow
+    private val headerResult: StateFlow<HeaderResult> =
+        if (studentId.isBlank()) {
+            MutableStateFlow<HeaderResult>(HeaderResult.Error("No se encontró el estudiante."))
+        } else {
+            observeStudentUseCase(studentId)
+                .map { student ->
+                    val safe = toSafeStudent(student, studentId)
+                    if (safe == null) {
+                        HeaderResult.Error("No se encontró el estudiante.")
+                    } else {
+                        HeaderResult.Success(
+                            StudentStoreHeader(
+                                id = safe.id,
+                                fullName = safe.fullName,
+                                coins = safe.coins
+                            )
+                        )
+                    }
+                }
+                .onStart { emit(HeaderResult.Loading) } // suspend lambda OK
+                .catch { emit(HeaderResult.Error(it.message ?: "Error al cargar el estudiante.")) }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = HeaderResult.Loading
+                )
+        }
+
+    // Store data flow
+    private val storeResult: StateFlow<StoreResult> =
+        if (studentId.isBlank()) {
+            MutableStateFlow<StoreResult>(StoreResult.Error("No se encontró el estudiante."))
+        } else {
+            combine(
+                observeStoreItemsUseCase(),
+                observeStudentInventoryUseCase(studentId),
+                observeStudentPetUseCase(studentId)
+            ) { items, inventory, pet ->
+                StoreResult.Success(items, inventory, pet) as StoreResult
+            }
+                .onStart { emit(StoreResult.Loading) }
+                .catch { emit(StoreResult.Error(it.message ?: "Error al cargar la tienda.")) }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = StoreResult.Loading
+                )
+        }
+
+    // UI state
     val uiState: StateFlow<StudentStoreUiState> = combine(
         headerResult,
         storeResult,
         processingItemId
     ) { header, store, processingId ->
-        when {
-            header is HeaderResult.Loading || store is StoreResult.Loading -> StudentStoreUiState.Loading
-            header is HeaderResult.Error -> StudentStoreUiState.Error(null, header.message)
-            store is StoreResult.Error ->
-                if (header is HeaderResult.Success) {
-                    StudentStoreUiState.Error(header.header, store.message)
-                } else {
-                    StudentStoreUiState.Error(null, store.message)
-                }
-            header is HeaderResult.Success && store is StoreResult.Success -> {
-                val sections = buildSections(header.header, store, processingId)
-                val hasItems = sections.any { it.items.isNotEmpty() }
-                if (hasItems) {
-                    StudentStoreUiState.Success(header.header, sections)
-                } else {
-                    StudentStoreUiState.Empty(header.header, "No hay artículos disponibles en la tienda.")
+        when (header) {
+            is HeaderResult.Loading -> StudentStoreUiState.Loading
+            is HeaderResult.Error -> StudentStoreUiState.Error(null, header.message)
+            is HeaderResult.Success -> {
+                when (store) {
+                    is StoreResult.Loading -> StudentStoreUiState.Loading
+                    is StoreResult.Error -> StudentStoreUiState.Error(header.header, store.message)
+                    is StoreResult.Success -> {
+                        val sections = buildSections(header.header, store, processingId)
+                        val hasItems = sections.any { it.items.isNotEmpty() }
+                        if (hasItems) {
+                            StudentStoreUiState.Success(header.header, sections)
+                        } else {
+                            StudentStoreUiState.Empty(header.header, "No hay artículos disponibles en la tienda.")
+                        }
+                    }
                 }
             }
-            else -> StudentStoreUiState.Loading
         }
     }.stateIn(
         scope = viewModelScope,
@@ -182,34 +249,36 @@ class StudentStoreViewModel @Inject constructor(
     ): List<StudentStoreSection> {
         val inventoryMap = store.inventory.associateBy { it.itemId }
         return StoreSection.values().map { section ->
-            val sectionItems = store.items.filter { it.toSection() == section }.map { item ->
-                val meta = item.meta
-                val canAfford = header.coins >= item.price.coerceAtLeast(0)
-                val restriction = when (section) {
-                    StoreSection.PETS -> petRestriction(store.pet, meta)
-                    StoreSection.ACCESSORIES -> accessoryRestriction(store.pet, meta)
-                    StoreSection.CONSUMABLES -> null
+            val sectionItems = store.items
+                .filter { it.toSection() == section }
+                .map { item ->
+                    val meta = item.meta
+                    val canAfford = header.coins >= item.price.coerceAtLeast(0)
+                    val restriction = when (section) {
+                        StoreSection.PETS -> petRestriction(store.pet, meta)
+                        StoreSection.ACCESSORIES -> accessoryRestriction(store.pet, meta)
+                        StoreSection.CONSUMABLES -> null
+                    }
+                    val reason = when {
+                        restriction != null -> restriction
+                        !canAfford -> "Monedas insuficientes"
+                        meta is StoreItemMeta.Unknown -> "No disponible"
+                        else -> null
+                    }
+                    val allowed = restriction == null && canAfford && meta !is StoreItemMeta.Unknown
+                    val quantity = inventoryMap[item.id]?.quantity?.coerceAtLeast(0) ?: 0
+                    StudentStoreItemUi(
+                        id = item.id,
+                        name = item.name,
+                        price = item.price.coerceAtLeast(0),
+                        section = section,
+                        meta = meta,
+                        canPurchase = allowed,
+                        restrictionMessage = reason,
+                        quantity = quantity,
+                        isProcessing = processingId == item.id
+                    )
                 }
-                val reason = when {
-                    restriction != null -> restriction
-                    !canAfford -> "Monedas insuficientes"
-                    meta is StoreItemMeta.Unknown -> "No disponible"
-                    else -> null
-                }
-                val allowed = restriction == null && canAfford && meta !is StoreItemMeta.Unknown
-                val quantity = inventoryMap[item.id]?.quantity?.coerceAtLeast(0) ?: 0
-                StudentStoreItemUi(
-                    id = item.id,
-                    name = item.name,
-                    price = item.price.coerceAtLeast(0),
-                    section = section,
-                    meta = meta,
-                    canPurchase = allowed,
-                    restrictionMessage = reason,
-                    quantity = quantity,
-                    isProcessing = processingId == item.id
-                )
-            }
             StudentStoreSection(section, sectionItems)
         }
     }

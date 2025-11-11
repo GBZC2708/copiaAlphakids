@@ -1,3 +1,7 @@
+@file:OptIn(
+    ExperimentalMaterial3Api::class
+)
+
 package com.example.alphakids.ui.screens.tutor.dictionary
 
 import androidx.compose.foundation.layout.Arrangement

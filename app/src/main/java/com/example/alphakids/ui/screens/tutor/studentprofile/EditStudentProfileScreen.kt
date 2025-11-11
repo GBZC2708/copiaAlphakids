@@ -33,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -103,11 +102,24 @@ fun EditStudentProfileScreen(
         else -> emptyList()
     }
 
-    val selectedDocenteName = teacherOptions.firstOrNull { it.id == selectedDocenteId }?.fullName ?: ""
+    val selectedDocenteName =
+        teacherOptions.firstOrNull { it.id == selectedDocenteId }?.fullName ?: ""
 
-    val isLoading = updateState is StudentUiState.Loading || detailState is StudentDetailUiState.Loading || detailState is StudentDetailUiState.Idle
+    val isLoading =
+        updateState is StudentUiState.Loading ||
+                detailState is StudentDetailUiState.Loading ||
+                detailState is StudentDetailUiState.Idle
+
     val updateError = (updateState as? StudentUiState.Error)?.message
     val detailError = (detailState as? StudentDetailUiState.Error)?.message
+
+    // Dispara navegación al guardar exitoso
+    LaunchedEffect(updateState) {
+        if (updateState is StudentUiState.Success) {
+            onSaveClick()
+            viewModel.resetUpdateState()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -231,15 +243,15 @@ fun EditStudentProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Mantengo el filtrado numérico; se puede abrir teclado numérico desde el propio LabeledTextField si expone ese parámetro.
                     LabeledTextField(
                         label = "Edad",
                         value = edadString,
                         onValueChange = {
-                            edadString = it.filter { char -> char.isDigit() }
+                            edadString = it.filter { ch -> ch.isDigit() }
                             if (edadError != null) edadError = null
                         },
-                        placeholderText = "Edad",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        placeholderText = "Edad"
                     )
                     edadError?.let { error ->
                         Text(
@@ -297,7 +309,8 @@ fun EditStudentProfileScreen(
                             }
                         }
                     }
-                    when (teacherState) {
+
+                    when (val ts = teacherState) {
                         TeacherListUiState.Loading -> {
                             Text(
                                 text = "Cargando docentes...",
@@ -316,14 +329,15 @@ fun EditStudentProfileScreen(
                         }
                         is TeacherListUiState.Error -> {
                             Text(
-                                text = teacherState.message,
+                                text = ts.message,
                                 fontFamily = dmSansFamily,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
-                        else -> {}
+                        else -> Unit
                     }
+
                     docenteError?.let { error ->
                         Text(
                             text = error,
@@ -377,11 +391,6 @@ fun EditStudentProfileScreen(
 
             if (isLoading) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
-            }
-
-            if (updateState is StudentUiState.Success) {
-                onSaveClick()
-                viewModel.resetUpdateState()
             }
         }
     }

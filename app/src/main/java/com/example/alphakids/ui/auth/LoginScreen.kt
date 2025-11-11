@@ -15,8 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +87,6 @@ fun LoginScreen(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 IconContainer(
@@ -136,7 +135,7 @@ fun LoginScreen(
                     value = formState.email,
                     onValueChange = viewModel::onLoginEmailChanged,
                     placeholderText = "Escribe tu correo",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email),
                     error = formState.emailError
                 )
 
@@ -175,9 +174,7 @@ fun LoginScreen(
 
                 PrimaryButton(
                     text = "Iniciar sesión",
-                    onClick = {
-                        viewModel.submitLogin()
-                    },
+                    onClick = { viewModel.submitLogin() },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading
                 )

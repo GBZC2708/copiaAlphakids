@@ -30,25 +30,32 @@ class AssignmentRepositoryImpl @Inject constructor(
     private val asignacionesCol = db.collection("asignaciones")
     private val estudiantesCol = db.collection("estudiantes")
 
+    /**
+     * Crea una asignación si no existe la dupla (id_estudiante, id_palabra).
+     * Importante: dentro de un transaction NO se puede hacer query, solo get(DocumentReference).
+     * Por eso primero consultamos fuera del transaction y, si no hay doc, creamos uno nuevo.
+     */
     override suspend fun createAssignment(assignment: WordAssignment): AssignmentResult {
         return try {
-            val resultId = db.runTransaction { transaction ->
-                val existingSnapshot = transaction.get(
-                    asignacionesCol
-                        .whereEqualTo("id_estudiante", assignment.idEstudiante)
-                        .whereEqualTo("id_palabra", assignment.idPalabra)
-                        .limit(1)
-                )
+            // 1) Buscar si ya existe
+            val existing = asignacionesCol
+                .whereEqualTo("id_estudiante", assignment.idEstudiante)
+                .whereEqualTo("id_palabra", assignment.idPalabra)
+                .limit(1)
+                .get()
+                .await()
 
-                if (!existingSnapshot.isEmpty) {
-                    existingSnapshot.documents.first().id
-                } else {
-                    val newRef = asignacionesCol.document()
-                    val asignacionMap = WordAssignmentMapper.fromDomain(assignment)
-                    transaction.set(newRef, asignacionMap)
-                    newRef.id
-                }
-            }.await()
+            val existingId = existing.documents.firstOrNull()?.id
+            val resultId = if (existingId != null) {
+                existingId
+            } else {
+                // 2) Crear nueva asignación (idempotente respecto a la verificación anterior)
+                val newRef = asignacionesCol.document()
+                val asignacionMap = WordAssignmentMapper.fromDomain(assignment)
+                newRef.set(asignacionMap, SetOptions.merge()).await()
+                newRef.id
+            }
+
             Log.d("AssignmentRepo", "Asignación creada/recuperada con ID: $resultId")
             Result.success(resultId)
         } catch (e: Exception) {
@@ -80,6 +87,7 @@ class AssignmentRepositoryImpl @Inject constructor(
             if (studentIds.isEmpty()) {
                 flowOf(emptyList())
             } else {
+                // Firestore whereIn máximo 10 ids -> tomar 10 primeras (o trocear si lo necesitas)
                 estudiantesCol.whereIn(FieldPath.documentId(), studentIds.take(10))
                     .snapshots()
                     .map { snapshot ->
@@ -96,7 +104,6 @@ class AssignmentRepositoryImpl @Inject constructor(
         }
     }
 
-
     override fun getFilteredAssignmentsByStudent(
         studentId: String,
         difficulty: String?,
@@ -104,7 +111,6 @@ class AssignmentRepositoryImpl @Inject constructor(
     ): Flow<List<WordAssignment>> = asignacionesCol
         .whereEqualTo("id_estudiante", studentId)
         .apply {
-
             if (difficulty != null && difficulty != "Todos") {
                 whereEqualTo("palabra_dificultad", difficulty)
             }
@@ -112,15 +118,11 @@ class AssignmentRepositoryImpl @Inject constructor(
         .orderBy("fecha_asignacion", Query.Direction.DESCENDING)
         .snapshots()
         .map { snapshot ->
-
             snapshot.toObjects(AsignacionPalabra::class.java).mapNotNull { dto ->
                 val domain = WordAssignmentMapper.toDomain(dto)
-
                 if (query.isNullOrBlank() || domain.palabraTexto.contains(query, ignoreCase = true)) {
                     domain
-                } else {
-                    null
-                }
+                } else null
             }
         }
         .catch { exception ->

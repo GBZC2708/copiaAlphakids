@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -22,23 +23,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -71,38 +73,42 @@ fun CameraOCRScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (permissionState.status.isGranted) {
+            // Vista de cámara
             CameraScanScreen(
                 delimitedBox = true,
                 scanOnButton = true,
                 isScanning = isScanning,
                 onScanRequest = { viewModel.startScan() },
                 onTextDetected = { viewModel.onScanResult(it) },
-                onScanError = { viewModel.onScanError(it) },
-                overlayContent = {
-                    CameraOverlayHeader(
-                        targetWord = uiState.displayWord,
-                        onBackClick = onBackClick
-                    )
-                    if (statusMessage != null) {
-                        StatusMessage(
-                            message = statusMessage,
-                            isError = status is CameraScanStatus.Error,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 128.dp)
-                                .padding(horizontal = 24.dp)
-                        )
-                    } else if (isScanning) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 128.dp)
-                                .padding(horizontal = 24.dp)
-                                .fillMaxWidth()
-                        )
-                    }
-                }
+                onScanError = { viewModel.onScanError(it) }
+                // overlay dibujado encima en este Box
             )
+
+            // Overlay superior
+            CameraOverlayHeader(
+                targetWord = uiState.displayWord,
+                onBackClick = onBackClick
+            )
+
+            // Mensaje/loader inferior
+            if (statusMessage != null) {
+                StatusMessage(
+                    message = statusMessage,
+                    isError = status is CameraScanStatus.Error,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 128.dp)
+                        .padding(horizontal = 24.dp)
+                )
+            } else if (isScanning) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 128.dp)
+                        .padding(horizontal = 24.dp)
+                        .fillMaxWidth()
+                )
+            }
         } else {
             PermissionDeniedContent(
                 onBackClick = onBackClick,
@@ -125,16 +131,15 @@ fun CameraOCRScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BoxScope.CameraOverlayHeader(
     targetWord: String,
     onBackClick: () -> Unit
 ) {
-    SmallTopAppBar(
+    TopAppBar(
         title = {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Busca: $targetWord",
                     color = Color.White,
@@ -156,7 +161,7 @@ private fun BoxScope.CameraOverlayHeader(
                 )
             }
         },
-        colors = TopAppBarDefaults.smallTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Black.copy(alpha = 0.6f),
             titleContentColor = Color.White,
             navigationIconContentColor = Color.White

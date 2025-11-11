@@ -78,54 +78,53 @@ class StudentAssignmentsViewModel @Inject constructor(
             _headerLoaded.value = true
             _assignmentsLoaded.value = true
             _errorMessage.value = "No se encontró el estudiante."
-            return
-        }
+        } else {
+            viewModelScope.launch {
+                observeStudentUseCase(studentId)
+                    .catch { error ->
+                        _headerLoaded.value = true
+                        _errorMessage.value = error.message ?: "Error al cargar el estudiante."
+                    }
+                    .collect { student ->
+                        _headerLoaded.value = true
+                        if (student == null) {
+                            _errorMessage.value = "No se encontró el estudiante."
+                            _header.value = null
+                        } else {
+                            val fullName = listOf(student.nombre, student.apellido)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" ")
+                                .ifBlank { "Estudiante" }
+                            val header = StudentAssignmentsHeader(
+                                id = student.id,
+                                fullName = fullName,
+                                coins = student.coins.coerceAtLeast(0)
+                            )
+                            _header.value = header
+                            if (_errorMessage.value?.contains("estudiante") == true) {
+                                _errorMessage.value = null
+                            }
+                        }
+                    }
+            }
 
-        viewModelScope.launch {
-            observeStudentUseCase(studentId)
-                .catch { error ->
-                    _headerLoaded.value = true
-                    _errorMessage.value = error.message ?: "Error al cargar el estudiante."
-                }
-                .collect { student ->
-                    _headerLoaded.value = true
-                    if (student == null) {
-                        _errorMessage.value = "No se encontró el estudiante."
-                        _header.value = null
-                    } else {
-                        val fullName = listOf(student.nombre, student.apellido)
-                            .filter { it.isNotBlank() }
-                            .joinToString(" ")
-                            .ifBlank { "Estudiante" }
-                        val header = StudentAssignmentsHeader(
-                            id = student.id,
-                            fullName = fullName,
-                            coins = student.coins.coerceAtLeast(0)
-                        )
-                        _header.value = header
-                        if (_errorMessage.value?.contains("estudiante") == true) {
+            viewModelScope.launch {
+                observePendingAssignmentsUseCase(studentId)
+                    .catch { error ->
+                        _assignmentsLoaded.value = true
+                        _errorMessage.value = error.message ?: "Error al cargar asignaciones."
+                    }
+                    .collect { assignments ->
+                        _assignmentsLoaded.value = true
+                        latestAssignments.value = assignments.associateBy { it.id }
+                        _assignments.value = assignments
+                            .filter { it.id.isNotBlank() }
+                            .map { it.toUiItem() }
+                        if (_assignments.value.isNotEmpty()) {
                             _errorMessage.value = null
                         }
                     }
-                }
-        }
-
-        viewModelScope.launch {
-            observePendingAssignmentsUseCase(studentId)
-                .catch { error ->
-                    _assignmentsLoaded.value = true
-                    _errorMessage.value = error.message ?: "Error al cargar asignaciones."
-                }
-                .collect { assignments ->
-                    _assignmentsLoaded.value = true
-                    latestAssignments.value = assignments.associateBy { it.id }
-                    _assignments.value = assignments
-                        .filter { it.id.isNotBlank() }
-                        .map { it.toUiItem() }
-                    if (_assignments.value.isNotEmpty()) {
-                        _errorMessage.value = null
-                    }
-                }
+            }
         }
     }
 

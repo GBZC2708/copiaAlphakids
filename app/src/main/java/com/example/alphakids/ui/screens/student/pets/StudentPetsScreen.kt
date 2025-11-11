@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.alphakids.ui.screens.student.pets
 
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +53,7 @@ import com.example.alphakids.ui.components.BottomNavItem
 import com.example.alphakids.ui.components.MainBottomBar
 import com.example.alphakids.ui.components.PetStatusCard
 import com.example.alphakids.ui.theme.dmSansFamily
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun StudentPetsRoute(

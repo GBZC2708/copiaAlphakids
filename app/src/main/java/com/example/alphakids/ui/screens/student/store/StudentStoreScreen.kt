@@ -55,6 +55,7 @@ import com.example.alphakids.ui.components.BottomNavItem
 import com.example.alphakids.ui.components.MainBottomBar
 import com.example.alphakids.ui.components.StoreItemCard
 import com.example.alphakids.ui.theme.dmSansFamily
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun StudentStoreRoute(
@@ -72,9 +73,9 @@ fun StudentStoreRoute(
     val selectedSection = rememberSaveable { mutableStateOf(initialSection) }
     val bottomNavItems = remember {
         listOf(
-            BottomNavItem("home", "Inicio", Home),
-            BottomNavItem("store", "Tienda", Store),
-            BottomNavItem("pets", "Mascotas", Pets)
+            BottomNavItem("home", "Inicio", Icons.Rounded.Home),
+            BottomNavItem("store", "Tienda", Icons.Rounded.Store),
+            BottomNavItem("pets", "Mascotas", Icons.Rounded.Pets)
         )
     }
 

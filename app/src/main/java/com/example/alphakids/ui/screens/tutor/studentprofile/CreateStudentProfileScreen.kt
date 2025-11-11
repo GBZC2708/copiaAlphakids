@@ -97,7 +97,8 @@ fun CreateStudentProfileScreen(
         else -> emptyList()
     }
 
-    val selectedDocenteName = teacherOptions.firstOrNull { it.id == selectedDocenteId }?.fullName ?: ""
+    val selectedDocenteName =
+        teacherOptions.firstOrNull { it.id == selectedDocenteId }?.fullName ?: ""
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -142,9 +143,19 @@ fun CreateStudentProfileScreen(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Nuevo Perfil", fontFamily = dmSansFamily, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                Text(
+                    "Nuevo Perfil",
+                    fontFamily = dmSansFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                )
                 Spacer(modifier = Modifier.height(5.dp))
-                Text("Ingresa los datos de tu hijo", fontFamily = dmSansFamily, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Ingresa los datos de tu hijo",
+                    fontFamily = dmSansFamily,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(32.dp))
 
                 LabeledTextField(
@@ -235,7 +246,8 @@ fun CreateStudentProfileScreen(
                         }
                     }
                 }
-                when (teacherState) {
+
+                when (val state = teacherState) {
                     TeacherListUiState.Loading -> {
                         Text(
                             text = "Cargando docentes...",
@@ -254,7 +266,7 @@ fun CreateStudentProfileScreen(
                     }
                     is TeacherListUiState.Error -> {
                         Text(
-                            text = teacherState.message,
+                            text = state.message,
                             fontFamily = dmSansFamily,
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.error
@@ -262,6 +274,7 @@ fun CreateStudentProfileScreen(
                     }
                     else -> {}
                 }
+
                 docenteError?.let { error ->
                     Text(
                         text = error,

@@ -3,6 +3,7 @@ package com.example.alphakids.ui.screens.tutor.dictionary
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.alphakids.domain.models.Student
 import com.example.alphakids.domain.models.TeacherDictionaryWord
 import com.example.alphakids.domain.usecases.ObserveStudentUseCase
 import com.example.alphakids.domain.usecases.ObserveTeacherDictionaryUseCase
@@ -14,13 +15,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -46,18 +47,24 @@ class StudentDictionaryViewModel @Inject constructor(
     private val _events = MutableSharedFlow<StudentDictionaryEvent>()
     val events = _events.asSharedFlow()
 
-    private val headerFlow: StateFlow<HeaderResult> = if (studentId.isBlank()) {
-        MutableStateFlow(HeaderResult.Error("No se encontró el estudiante."))
-    } else {
-        refreshTrigger
-            .flatMapLatest {
+    // --- HEADER ---
+    private val _headerFlow = MutableStateFlow<HeaderResult>(HeaderResult.Loading)
+    private val headerFlow: StateFlow<HeaderResult> = _headerFlow.asStateFlow()
+
+    init {
+        if (studentId.isBlank()) {
+            _headerFlow.value = HeaderResult.Error("No se encontró el estudiante.")
+        } else {
+            // observeStudentUseCase debe devolver Flow<Student?>
+            viewModelScope.launch {
                 observeStudentUseCase(studentId)
-                    .map<HeaderResult> { student ->
+                    .map { student: Student? ->
                         val entity = student ?: return@map HeaderResult.Error("No se encontró el estudiante.")
                         val fullName = listOf(entity.nombre, entity.apellido)
                             .filter { it.isNotBlank() }
                             .joinToString(" ")
                             .ifBlank { "Estudiante" }
+
                         HeaderResult.Data(
                             StudentDictionaryHeader(
                                 studentId = entity.id,
@@ -67,108 +74,159 @@ class StudentDictionaryViewModel @Inject constructor(
                             )
                         )
                     }
-                    .onStart { emit(HeaderResult.Loading) }
-                    .catch { emit(HeaderResult.Error(it.message ?: "Error al cargar el estudiante.")) }
+                    .catch { e ->
+                        emit(HeaderResult.Error(e.message ?: "Error al cargar el estudiante."))
+                    }
+                    .collect { result ->
+                        _headerFlow.value = result
+                    }
             }
+        }
+    }
+
+    // TeacherId derivado del header (tipado y con estado inicial nulo)
+    private val teacherIdFlow: StateFlow<String?> =
+        headerFlow
+            .map { (it as? HeaderResult.Data)?.header?.teacherId }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HeaderResult.Loading
+                initialValue = null
             )
-    }
 
-    private val dictionaryFlow: StateFlow<List<TeacherDictionaryWord>> = combine(headerFlow, refreshTrigger) { header, _ ->
-        header
-    }
-        .mapNotNull { result -> (result as? HeaderResult.Data)?.header?.teacherId }
-        .flatMapLatest { teacherId ->
-            observeTeacherDictionaryUseCase(studentId, teacherId)
-        }
-        .onEach { words ->
-            latestWords.value = words.associateBy { it.id }
-            val currentIds = words.map { it.id }.toSet()
-            locallyCompleted.update { current -> current.filter { it in currentIds }.toSet() }
-        }
-        .catch { emit(emptyList()) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
-
-    val uiState: StateFlow<StudentDictionaryUiState> = combine(
-        headerFlow,
-        dictionaryFlow,
-        searchQuery,
-        selectedCategory,
-        selectedDifficulty,
-        selectedWordId,
-        locallyCompleted
-    ) { headerResult, words, query, category, difficulty, selectedId, completedIds ->
-        when (headerResult) {
-            HeaderResult.Loading -> StudentDictionaryUiState.Loading
-            is HeaderResult.Error -> StudentDictionaryUiState.Error(headerResult.message)
-            is HeaderResult.Data -> {
-                val header = headerResult.header
-                val availableWords = words.filterNot { completedIds.contains(it.id) }
-                if (words.isEmpty()) {
-                    return@combine StudentDictionaryUiState.Empty(
-                        header = header,
-                        message = "No hay palabras disponibles en tu diccionario."
-                    )
-                }
-                val filtered = availableWords.filter { word ->
-                    val matchesQuery = query.isBlank() || word.palabra.contains(query, ignoreCase = true)
-                    val matchesCategory = category.isNullOrBlank() || word.categoria.equals(category, ignoreCase = true)
-                    val matchesDifficulty = difficulty.isNullOrBlank() || word.dificultad.equals(difficulty, ignoreCase = true)
-                    matchesQuery && matchesCategory && matchesDifficulty
-                }.sortedBy { it.palabra.lowercase() }
-                val categories = availableWords.mapNotNull { it.categoria?.takeIf(String::isNotBlank) }
-                    .distinct()
-                    .sorted()
-                val difficulties = availableWords.mapNotNull { it.dificultad?.takeIf(String::isNotBlank) }
-                    .distinct()
-                    .sorted()
-                val items = filtered.map { word ->
-                    StudentDictionaryWordItem(
-                        id = word.id,
-                        maskedWord = maskWord(word.palabra),
-                        targetWord = word.palabra,
-                        category = word.categoria,
-                        difficulty = word.dificultad,
-                        rewardCoins = word.rewardCoins.coerceAtLeast(0),
-                        usage = word.uso,
-                        isSelected = word.id == selectedId
-                    )
-                }
-                val emptyMessage = if (items.isEmpty()) {
-                    "No se encontraron palabras con los filtros seleccionados."
+    // --- DICCIONARIO (combina con refreshTrigger para reintentar/actualizar) ---
+    private val dictionaryFlow: StateFlow<List<TeacherDictionaryWord>> =
+        combine(
+            teacherIdFlow,
+            refreshTrigger
+        ) { teacherId: String?, _: Int -> teacherId }
+            .flatMapLatest { teacherId ->
+                if (teacherId.isNullOrBlank() || studentId.isBlank()) {
+                    flowOf(emptyList())
                 } else {
-                    null
+                    observeTeacherDictionaryUseCase(studentId, teacherId)
                 }
-                StudentDictionaryUiState.Success(
-                    header = header,
-                    items = items,
-                    filters = DictionaryFiltersState(
-                        searchQuery = query,
-                        categories = categories,
-                        selectedCategory = category,
-                        difficulties = difficulties,
-                        selectedDifficulty = difficulty
-                    ),
-                    emptyMessage = emptyMessage
-                )
             }
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = StudentDictionaryUiState.Loading
+            .onEach { words ->
+                latestWords.value = words.associateBy { it.id }
+                val currentIds = words.map { it.id }.toSet()
+                locallyCompleted.update { current -> current.filter { it in currentIds }.toSet() }
+            }
+            .catch { emit(emptyList()) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
+
+    // --- Filtros tipados ---
+    private data class FilterInputs(
+        val query: String,
+        val category: String?,
+        val difficulty: String?,
+        val selectedId: String?,
+        val completedIds: Set<String>
     )
 
-    fun onSearchQueryChange(value: String) {
-        searchQuery.value = value
-    }
+    private val filterInputs: StateFlow<FilterInputs> =
+        combine(
+            searchQuery,
+            selectedCategory,
+            selectedDifficulty,
+            selectedWordId,
+            locallyCompleted
+        ) { query, category, difficulty, selectedId, completed ->
+            FilterInputs(query, category, difficulty, selectedId, completed)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = FilterInputs(
+                query = "",
+                category = null,
+                difficulty = null,
+                selectedId = null,
+                completedIds = emptySet()
+            )
+        )
+
+    // --- UI State ---
+    val uiState: StateFlow<StudentDictionaryUiState> =
+        combine(headerFlow, dictionaryFlow, filterInputs) { headerResult, words, inputs ->
+            when (headerResult) {
+                HeaderResult.Loading -> StudentDictionaryUiState.Loading
+                is HeaderResult.Error -> StudentDictionaryUiState.Error(headerResult.message)
+                is HeaderResult.Data -> {
+                    val header = headerResult.header
+                    val availableWords = words.filterNot { inputs.completedIds.contains(it.id) }
+
+                    if (words.isEmpty()) {
+                        return@combine StudentDictionaryUiState.Empty(
+                            header = header,
+                            message = "No hay palabras disponibles en tu diccionario."
+                        )
+                    }
+
+                    val filtered = availableWords
+                        .filter { word ->
+                            val matchesQuery =
+                                inputs.query.isBlank() || word.palabra.contains(inputs.query, ignoreCase = true)
+                            val matchesCategory =
+                                inputs.category.isNullOrBlank() || (word.categoria?.equals(inputs.category, ignoreCase = true) == true)
+                            val matchesDifficulty =
+                                inputs.difficulty.isNullOrBlank() || (word.dificultad?.equals(inputs.difficulty, ignoreCase = true) == true)
+                            matchesQuery && matchesCategory && matchesDifficulty
+                        }
+                        .sortedBy { it.palabra.lowercase() }
+
+                    val categories = availableWords
+                        .mapNotNull { it.categoria?.takeIf { c -> c.isNotBlank() } }
+                        .distinct()
+                        .sorted()
+
+                    val difficulties = availableWords
+                        .mapNotNull { it.dificultad?.takeIf { d -> d.isNotBlank() } }
+                        .distinct()
+                        .sorted()
+
+                    val items = filtered.map { word ->
+                        StudentDictionaryWordItem(
+                            id = word.id,
+                            maskedWord = maskWord(word.palabra),
+                            targetWord = word.palabra,
+                            category = word.categoria,
+                            difficulty = word.dificultad,
+                            rewardCoins = word.rewardCoins.coerceAtLeast(0),
+                            usage = word.uso,
+                            isSelected = word.id == inputs.selectedId
+                        )
+                    }
+
+                    val emptyMessage = if (items.isEmpty()) {
+                        "No se encontraron palabras con los filtros seleccionados."
+                    } else null
+
+                    StudentDictionaryUiState.Success(
+                        header = header,
+                        items = items,
+                        filters = DictionaryFiltersState(
+                            searchQuery = inputs.query,
+                            categories = categories,
+                            selectedCategory = inputs.category,
+                            difficulties = difficulties,
+                            selectedDifficulty = inputs.difficulty
+                        ),
+                        emptyMessage = emptyMessage
+                    )
+                }
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = StudentDictionaryUiState.Loading
+        )
+
+    // --- Intents ---
+    fun onSearchQueryChange(value: String) { searchQuery.value = value }
 
     fun onCategorySelected(value: String?) {
         selectedCategory.value = if (selectedCategory.value == value) null else value
@@ -184,13 +242,9 @@ class StudentDictionaryViewModel @Inject constructor(
         selectedDifficulty.value = null
     }
 
-    fun onWordSelected(wordId: String) {
-        selectedWordId.value = wordId
-    }
+    fun onWordSelected(wordId: String) { selectedWordId.value = wordId }
 
-    fun retry() {
-        refreshTrigger.update { it + 1 }
-    }
+    fun retry() { refreshTrigger.update { it + 1 } }
 
     fun onWordScanFailed() {
         viewModelScope.launch {
@@ -208,23 +262,23 @@ class StudentDictionaryViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
+            // Optimistic UI
             locallyCompleted.update { it + wordId }
             selectedWordId.value = null
+
             val result = rewardDictionaryWordUseCase(
                 studentId = header.studentId,
                 teacherId = header.teacherId,
                 wordId = wordId,
                 rewardCoins = word.rewardCoins.coerceAtLeast(0)
             )
+
             if (result.isSuccess) {
                 val reward = word.rewardCoins.coerceAtLeast(0)
-                val message = if (reward > 0) {
-                    "¡Excelente! Ganaste $reward monedas."
-                } else {
-                    "¡Excelente trabajo!"
-                }
+                val message = if (reward > 0) "¡Excelente! Ganaste $reward monedas." else "¡Excelente trabajo!"
                 _events.emit(StudentDictionaryEvent.Message(message))
             } else {
+                // revertir si falla
                 locallyCompleted.update { it - wordId }
                 _events.emit(
                     StudentDictionaryEvent.Message(
@@ -236,12 +290,11 @@ class StudentDictionaryViewModel @Inject constructor(
     }
 }
 
-private fun maskWord(value: String): String {
-    return value.map { char -> if (char.isWhitespace()) ' ' else '*' }.joinToString("")
-}
+private fun maskWord(value: String): String =
+    value.map { ch -> if (ch.isWhitespace()) ' ' else '*' }.joinToString("")
 
 private sealed interface HeaderResult {
-    object Loading : HeaderResult
+    data object Loading : HeaderResult
     data class Error(val message: String) : HeaderResult
     data class Data(val header: StudentDictionaryHeader) : HeaderResult
 }
@@ -273,7 +326,7 @@ data class StudentDictionaryWordItem(
 )
 
 sealed interface StudentDictionaryUiState {
-    object Loading : StudentDictionaryUiState
+    data object Loading : StudentDictionaryUiState
     data class Error(val message: String) : StudentDictionaryUiState
     data class Empty(val header: StudentDictionaryHeader, val message: String) : StudentDictionaryUiState
     data class Success(

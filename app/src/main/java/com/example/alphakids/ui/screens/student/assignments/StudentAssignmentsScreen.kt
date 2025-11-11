@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.alphakids.ui.screens.student.assignments
 
 import androidx.compose.foundation.layout.Arrangement
@@ -39,10 +41,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.alphakids.ui.theme.dmSansFamily
-import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun StudentAssignmentsRoute(
@@ -53,10 +56,12 @@ fun StudentAssignmentsRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.events.collectLatest { event ->
             when (event) {
-                is StudentAssignmentsEvent.Message -> snackbarHostState.showSnackbar(event.text)
+                is StudentAssignmentsEvent.Message ->
+                    snackbarHostState.showSnackbar(event.text)
             }
         }
     }
