@@ -13,4 +13,10 @@ interface StoreRepository {
     suspend fun purchaseItem(estudianteId: String, itemId: String, quantity: Int = 1): Result<Unit>
     suspend fun equipAccessory(estudianteId: String, itemId: String, slot: AccessorySlot): Result<Unit>
     suspend fun consumeItem(estudianteId: String, itemId: String, quantity: Int = 1): Result<Unit>
+    suspend fun feedPet(
+        estudianteId: String,
+        itemId: String,
+        hungerDelta: Int,
+        happinessDelta: Int
+    ): Result<Unit>
 }

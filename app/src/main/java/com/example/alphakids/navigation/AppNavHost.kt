@@ -43,10 +43,9 @@ import com.example.alphakids.ui.screens.tutor.studentprofile.EditStudentProfileS
 import com.example.alphakids.ui.screens.tutor.games.MyGamesScreen
 import com.example.alphakids.ui.screens.tutor.games.AssignedWordsScreen
 import com.example.alphakids.ui.screens.tutor.games.WordPuzzleScreen
-import com.example.alphakids.ui.screens.tutor.pets.StudentPetsScreen
+import com.example.alphakids.ui.screens.student.pets.StudentPetsRoute
 import com.example.alphakids.ui.screens.student.store.StoreSection
 import com.example.alphakids.ui.screens.student.store.StudentStoreRoute
-import com.example.alphakids.ui.screens.tutor.pets.StudentPetDetailScreen
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsRoute
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsViewModel
 import com.example.alphakids.ui.screens.tutor.games.CameraOCRScreen
@@ -706,37 +705,7 @@ fun AppNavHost(
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
             val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentPetsScreen(
-                onLogoutClick = onLogout,
-                onBackClick = { navController.popBackStack() },
-                onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
-                onBottomNavClick = { route ->
-                    val targetRoute = when (route) {
-                        "home" -> Routes.homeRoute(studentId)
-                        "store" -> Routes.storeRoute(studentId)
-                        else -> Routes.petsRoute(studentId)
-                    }
-                    navigateToStudentBottomNav(targetRoute)
-                },
-                currentRoute = "pets",
-                onPetDetailClick = { petName ->
-                    navController.navigate(Routes.petDetailRoute(studentId, petName))
-                }
-            )
-        }
-        
-        // Detalle de Mascota
-        composable(
-            route = Routes.PET_DETAIL,
-            arguments = listOf(
-                navArgument("studentId") { type = NavType.StringType },
-                navArgument("petName") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            val petName = backStackEntry.arguments?.getString("petName") ?: "Mi Mascota"
-
-            StudentPetDetailScreen(
+            StudentPetsRoute(
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = onLogout,
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },
@@ -748,8 +717,7 @@ fun AppNavHost(
                     }
                     navigateToStudentBottomNav(targetRoute)
                 },
-                currentRoute = "pets",
-                petName = petName
+                currentBottomRoute = "pets"
             )
         }
     }
