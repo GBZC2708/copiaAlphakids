@@ -1,5 +1,7 @@
 package com.example.alphakids.navigation
 
+import android.net.Uri
+
 object Routes {
     // Roles
     const val ROLE_TEACHER = "teacher"
@@ -56,11 +58,18 @@ object Routes {
     
     const val GAME = "game"
     const val CAMERA = "camera"
-    
+
     // OCR Camera routes
     const val CAMERA_OCR_BASE = "camera_ocr"
     const val CAMERA_OCR = "$CAMERA_OCR_BASE/{assignmentId}/{targetWord}"
     fun cameraOCRRoute(assignmentId: String, targetWord: String) = "$CAMERA_OCR_BASE/$assignmentId/$targetWord"
+
+    const val DICTIONARY_CAMERA_OCR_BASE = "dictionary_camera_ocr"
+    const val DICTIONARY_CAMERA_OCR = "$DICTIONARY_CAMERA_OCR_BASE/{studentId}/{wordId}/{targetWord}"
+    fun dictionaryCameraOCRRoute(studentId: String, wordId: String, targetWord: String): String {
+        val encodedWord = Uri.encode(targetWord)
+        return "$DICTIONARY_CAMERA_OCR_BASE/$studentId/$wordId/$encodedWord"
+    }
     
     // Word History
     const val WORD_HISTORY = "word_history"
