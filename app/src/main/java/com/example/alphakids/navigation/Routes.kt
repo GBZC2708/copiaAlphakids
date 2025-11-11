@@ -116,4 +116,7 @@ object Routes {
     const val PET_DETAIL_BASE = "pet_detail"
     const val PET_DETAIL = "$PET_DETAIL_BASE/{studentId}/{petName}"
     fun petDetailRoute(studentId: String, petName: String) = "$PET_DETAIL_BASE/$studentId/$petName"
+
+    // Diagnóstico oculto
+    const val DIAGNOSTICS = "diagnostics"
 }

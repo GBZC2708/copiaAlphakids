@@ -1,23 +1,21 @@
 package com.example.alphakids.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Checkroom
-import androidx.compose.material.icons.rounded.Warning
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.alphakids.BuildConfig
 import com.example.alphakids.domain.models.UserRole
 import com.example.alphakids.ui.auth.AuthViewModel
 import com.example.alphakids.ui.word.WordUiState
@@ -49,6 +47,7 @@ import com.example.alphakids.ui.screens.student.store.StudentStoreRoute
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsRoute
 import com.example.alphakids.ui.screens.student.assignments.StudentAssignmentsViewModel
 import com.example.alphakids.ui.screens.tutor.games.CameraOCRScreen
+import com.example.alphakids.ui.screens.diagnostics.DiagnosticsRoute
 
 @Composable
 fun AppNavHost(
@@ -718,6 +717,12 @@ fun AppNavHost(
                 },
                 currentBottomRoute = "pets"
             )
+        }
+
+        if (BuildConfig.DEMO_MODE) {
+            composable(Routes.DIAGNOSTICS) {
+                DiagnosticsRoute()
+            }
         }
     }
 }
