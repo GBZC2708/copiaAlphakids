@@ -28,7 +28,8 @@ fun LabeledTextField(
     onValueChange: (String) -> Unit,
     placeholderText: String = "",
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    error: String? = null
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -47,8 +48,19 @@ fun LabeledTextField(
             onValueChange = onValueChange,
             placeholderText = placeholderText,
             visualTransformation = visualTransformation,
-            keyboardOptions = keyboardOptions // Pasar keyboardOptions
+            keyboardOptions = keyboardOptions,
+            isError = error != null
         )
+
+        if (error != null) {
+            Text(
+                text = error,
+                fontFamily = dmSansFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 

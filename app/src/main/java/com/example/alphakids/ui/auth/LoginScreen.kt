@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,10 +39,8 @@ fun LoginScreen(
     isTutorLogin: Boolean = true,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
     val uiState by viewModel.authUiState.collectAsState()
+    val formState by viewModel.loginFormState.collectAsState()
     val isLoading = uiState is AuthUiState.Loading
 
     LaunchedEffect(Unit) {
@@ -117,21 +117,38 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                if (uiState is AuthUiState.Empty) {
+                    Text(
+                        text = "Ingresa tus credenciales para continuar",
+                        fontFamily = dmSansFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 LabeledTextField(
                     label = "Correo Electrónico",
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholderText = "Escribe tu correo"
+                    value = formState.email,
+                    onValueChange = viewModel::onLoginEmailChanged,
+                    placeholderText = "Escribe tu correo",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    error = formState.emailError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 LabeledTextField(
                     label = "Contraseña",
-                    value = password,
-                    onValueChange = { password = it },
+                    value = formState.password,
+                    onValueChange = viewModel::onLoginPasswordChanged,
                     placeholderText = "Escribe tu contraseña",
-                    visualTransformation = PasswordVisualTransformation()
+                    visualTransformation = PasswordVisualTransformation(),
+                    error = formState.passwordError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -159,7 +176,7 @@ fun LoginScreen(
                 PrimaryButton(
                     text = "Iniciar sesión",
                     onClick = {
-                        viewModel.login(email, password)
+                        viewModel.submitLogin()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading

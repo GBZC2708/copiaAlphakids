@@ -37,10 +37,16 @@ fun BaseTextField(
     onValueChange: (String) -> Unit,
     placeholderText: String = "Textfield",
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    isError: Boolean = false
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(28.dp)
+    val borderColor = when {
+        isError -> MaterialTheme.colorScheme.error
+        isFocused -> MaterialTheme.colorScheme.primary
+        else -> Color.Transparent
+    }
 
     BasicTextField(
         value = value,
@@ -64,11 +70,7 @@ fun BaseTextField(
                 modifier = Modifier
                     .border(
                         width = 2.dp,
-                        color = if (isFocused) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            Color.Transparent
-                        },
+                        color = borderColor,
                         shape = shape
                     )
                     .clip(shape)
