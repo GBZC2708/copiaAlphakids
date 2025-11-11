@@ -32,10 +32,25 @@ class AssignmentRepositoryImpl @Inject constructor(
 
     override suspend fun createAssignment(assignment: WordAssignment): AssignmentResult {
         return try {
-            val asignacionMap = WordAssignmentMapper.fromDomain(assignment)
-            val docRef = asignacionesCol.add(asignacionMap).await()
-            Log.d("AssignmentRepo", "Asignación creada con ID: ${docRef.id}")
-            Result.success(docRef.id)
+            val resultId = db.runTransaction { transaction ->
+                val existingSnapshot = transaction.get(
+                    asignacionesCol
+                        .whereEqualTo("id_estudiante", assignment.idEstudiante)
+                        .whereEqualTo("id_palabra", assignment.idPalabra)
+                        .limit(1)
+                )
+
+                if (!existingSnapshot.isEmpty) {
+                    existingSnapshot.documents.first().id
+                } else {
+                    val newRef = asignacionesCol.document()
+                    val asignacionMap = WordAssignmentMapper.fromDomain(assignment)
+                    transaction.set(newRef, asignacionMap)
+                    newRef.id
+                }
+            }.await()
+            Log.d("AssignmentRepo", "Asignación creada/recuperada con ID: $resultId")
+            Result.success(resultId)
         } catch (e: Exception) {
             Log.e("AssignmentRepo", "Error al crear asignación", e)
             Result.failure(e)

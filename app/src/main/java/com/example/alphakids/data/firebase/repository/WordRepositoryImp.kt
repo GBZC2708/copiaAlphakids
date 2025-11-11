@@ -27,6 +27,30 @@ class WordRepositoryImpl @Inject constructor(
 
     override suspend fun createWord(word: Word): WordResult {
         return try {
+            val docenteId = word.creadoPor
+                ?: return Result.failure(IllegalStateException("Docente no válido"))
+            val normalizedText = word.texto.trim().lowercase()
+            if (normalizedText.isEmpty()) {
+                return Result.failure(IllegalArgumentException("La palabra es obligatoria"))
+            }
+            if (word.imagenUrl.isBlank()) {
+                return Result.failure(IllegalArgumentException("La imagen es obligatoria"))
+            }
+            if (word.rewardCoins <= 0) {
+                return Result.failure(IllegalArgumentException("Las monedas de recompensa deben ser mayores a cero"))
+            }
+
+            val duplicateSnapshot = palabrasCol
+                .whereEqualTo("creadoPor", docenteId)
+                .whereEqualTo("texto_normalizado", normalizedText)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!duplicateSnapshot.isEmpty) {
+                return Result.failure(IllegalStateException("Ya registraste esta palabra"))
+            }
+
             val palabraDto = WordMapper.fromDomain(word)
             val docRef = palabrasCol.add(palabraDto).await()
             Log.d("WordRepo", "Palabra creada con ID: ${docRef.id}")
@@ -42,6 +66,15 @@ class WordRepositoryImpl @Inject constructor(
             return Result.failure(IllegalArgumentException("Word ID is empty"))
         }
         return try {
+            if (word.texto.trim().isEmpty()) {
+                return Result.failure(IllegalArgumentException("La palabra es obligatoria"))
+            }
+            if (word.imagenUrl.isBlank()) {
+                return Result.failure(IllegalArgumentException("La imagen es obligatoria"))
+            }
+            if (word.rewardCoins <= 0) {
+                return Result.failure(IllegalArgumentException("Las monedas de recompensa deben ser mayores a cero"))
+            }
             val palabraDto = WordMapper.fromDomain(word)
             palabrasCol.document(word.id).set(palabraDto, SetOptions.merge()).await()
             Log.d("WordRepo", "Palabra actualizada con ID: ${word.id}")

@@ -10,6 +10,8 @@ data class Palabra(
     val id: String = "",
 
     val texto: String = "",
+    @get:PropertyName("texto_normalizado")
+    val textoNormalizado: String? = null,
     val categoria: String = "",
 
     @get:PropertyName("nivelDificultad")
