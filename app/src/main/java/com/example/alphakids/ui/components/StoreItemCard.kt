@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -79,7 +80,9 @@ fun StoreItemCard(
     price: Int,
     itemImage: Painter,
     onClickBuy: () -> Unit,
-    hasEnoughFunds: Boolean = true
+    enabled: Boolean = true,
+    isProcessing: Boolean = false,
+    supportingText: String? = null
 ) {
     val shape = RoundedCornerShape(28.dp)
     val fixedWidth = 171.dp
@@ -131,7 +134,7 @@ fun StoreItemCard(
         Button(
             onClick = onClickBuy,
             modifier = Modifier.fillMaxWidth(),
-            enabled = hasEnoughFunds,
+            enabled = enabled && !isProcessing,
             shape = RoundedCornerShape(28.dp),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 5.dp),
             colors = ButtonDefaults.buttonColors(
@@ -141,11 +144,33 @@ fun StoreItemCard(
                 disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
+            if (isProcessing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(
+                    text = "Comprar",
+                    fontFamily = dmSansFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        if (!supportingText.isNullOrBlank()) {
             Text(
-                text = "Comprar",
+                text = supportingText,
                 fontFamily = dmSansFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp
+                fontWeight = FontWeight.Normal,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
             )
         }
     }
@@ -171,7 +196,7 @@ fun StoreItemCardPreview() {
                 price = 30,
                 itemImage = SampleImage("Croquetas"),
                 onClickBuy = {},
-                hasEnoughFunds = true
+                enabled = true
             )
 
             // 2. Estado Deshabilitado (Faltan fondos)
@@ -180,7 +205,8 @@ fun StoreItemCardPreview() {
                 price = 300,
                 itemImage = SampleImage("Pescado"),
                 onClickBuy = {},
-                hasEnoughFunds = false
+                enabled = false,
+                supportingText = "Monedas insuficientes"
             )
         }
     }
