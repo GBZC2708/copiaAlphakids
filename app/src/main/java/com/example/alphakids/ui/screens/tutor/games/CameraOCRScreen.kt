@@ -1,51 +1,45 @@
 package com.example.alphakids.ui.screens.tutor.games
 
 import android.Manifest
-import android.content.Context
-import android.speech.tts.TextToSpeech
-import android.util.Log
-import androidx.camera.core.*
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.animation.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.SmallTopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.alphakids.ui.theme.dmSansFamily
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import kotlinx.coroutines.delay
-import java.util.*
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import com.google.accompanist.permissions.isGranted
+import androidx.compose.runtime.collectAsState
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CameraOCRScreen(
     assignmentId: String,
@@ -55,264 +49,180 @@ fun CameraOCRScreen(
     viewModel: CameraOCRViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    
-    var previewView by remember { mutableStateOf<PreviewView?>(null) }
-    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
-    var detectedText by remember { mutableStateOf("") }
-    var showSuccessAnimation by remember { mutableStateOf(false) }
-    var isWordCompleted by remember { mutableStateOf(false) }
+    val uiState by viewModel.uiState.collectAsState()
+    val permissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
-    // TTS Setup
-    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
-    
+    LaunchedEffect(assignmentId, targetWord) {
+        viewModel.initialize(assignmentId, targetWord)
+    }
+
     LaunchedEffect(Unit) {
-        tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale("es", "ES")
-                tts?.setSpeechRate(0.9f)
-            }
+        if (!permissionState.status.isGranted) {
+            permissionState.launchPermissionRequest()
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            tts?.shutdown()
-        }
-    }
+    val status = uiState.status
+    val statusMessage = uiState.message
+    val isScanning = status is CameraScanStatus.Scanning
 
-    // Check for word completion
-    LaunchedEffect(detectedText, targetWord) {
-        if (!isWordCompleted && detectedText.trim().uppercase() == targetWord.trim().uppercase()) {
-            isWordCompleted = true
-            showSuccessAnimation = true
-            
-            // Play TTS
-            tts?.speak(
-                "¡Bien hecho! La palabra es $targetWord",
-                TextToSpeech.QUEUE_FLUSH,
-                null,
-                null
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (permissionState.status.isGranted) {
+            CameraScanScreen(
+                delimitedBox = true,
+                scanOnButton = true,
+                isScanning = isScanning,
+                onScanRequest = { viewModel.startScan() },
+                onTextDetected = { viewModel.onScanResult(it) },
+                onScanError = { viewModel.onScanError(it) },
+                overlayContent = {
+                    CameraOverlayHeader(
+                        targetWord = uiState.displayWord,
+                        onBackClick = onBackClick
+                    )
+                    if (statusMessage != null) {
+                        StatusMessage(
+                            message = statusMessage,
+                            isError = status is CameraScanStatus.Error,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 128.dp)
+                                .padding(horizontal = 24.dp)
+                        )
+                    } else if (isScanning) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 128.dp)
+                                .padding(horizontal = 24.dp)
+                                .fillMaxWidth()
+                        )
+                    }
+                }
             )
-            
-            // Save to storage
-            WordHistoryStorage.saveCompletedWord(context, targetWord)
-            
-            // Hide animation after 3 seconds and complete
-            delay(3000)
+        } else {
+            PermissionDeniedContent(
+                onBackClick = onBackClick,
+                onRequestPermission = { permissionState.launchPermissionRequest() }
+            )
+        }
+    }
+
+    LaunchedEffect(status) {
+        if (status is CameraScanStatus.Success) {
+            WordHistoryStorage.saveCompletedWord(context, uiState.displayWord)
             onWordCompleted()
-        }
-    }
-
-    if (cameraPermissionState.status.isGranted) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Camera Preview
-            AndroidView(
-                factory = { ctx ->
-                    PreviewView(ctx).apply {
-                        previewView = this
-                        scaleType = PreviewView.ScaleType.FILL_CENTER
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // ROI Overlay
-            val density = LocalDensity.current
-            Canvas(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                val canvasWidth = size.width
-                val canvasHeight = size.height
-                
-                // Define ROI dimensions (centered rectangle)
-                val roiWidth = canvasWidth * 0.8f
-                val roiHeight = canvasHeight * 0.3f
-                val roiLeft = (canvasWidth - roiWidth) / 2
-                val roiTop = (canvasHeight - roiHeight) / 2
-                
-                // Draw semi-transparent overlay
-                drawRect(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    topLeft = Offset.Zero,
-                    size = size
-                )
-                
-                // Clear the ROI area
-                drawRect(
-                    color = Color.Transparent,
-                    topLeft = Offset(roiLeft, roiTop),
-                    size = Size(roiWidth, roiHeight),
-                    blendMode = androidx.compose.ui.graphics.BlendMode.Clear
-                )
-                
-                // Draw ROI border
-                drawRect(
-                    color = Color.Green,
-                    topLeft = Offset(roiLeft, roiTop),
-                    size = Size(roiWidth, roiHeight),
-                    style = Stroke(width = with(density) { 4.dp.toPx() })
-                )
-            }
-
-            // Top Bar
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Busca: $targetWord",
-                        fontFamily = dmSansFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black.copy(alpha = 0.7f)
-                )
-            )
-
-            // Detected Text Display
-            if (detectedText.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Black.copy(alpha = 0.8f)
-                    )
-                ) {
-                    Text(
-                        text = "Texto detectado: $detectedText",
-                        color = Color.White,
-                        fontFamily = dmSansFamily,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-
-            // Success Animation
-            AnimatedVisibility(
-                visible = showSuccessAnimation,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .padding(32.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Green.copy(alpha = 0.9f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "🎉",
-                            fontSize = 48.sp
-                        )
-                        Text(
-                            text = "¡Palabra Completada!",
-                            color = Color.White,
-                            fontFamily = dmSansFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        )
-                        Text(
-                            text = targetWord,
-                            color = Color.White,
-                            fontFamily = dmSansFamily,
-                            fontSize = 24.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // Setup Camera
-        LaunchedEffect(previewView) {
-            previewView?.let { preview ->
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                cameraProvider = cameraProviderFuture.get()
-                
-                setupCamera(
-                    cameraProvider = cameraProvider!!,
-                    previewView = preview,
-                    lifecycleOwner = lifecycleOwner,
-                    targetWord = targetWord,
-                    onTextDetected = { text ->
-                        detectedText = text
-                    }
-                )
-            }
-        }
-    } else {
-        // Permission Request
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Se necesita permiso de cámara para usar esta función",
-                fontFamily = dmSansFamily,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = { cameraPermissionState.launchPermissionRequest() }
-            ) {
-                Text("Conceder Permiso")
-            }
+            viewModel.resetToIdle()
         }
     }
 }
 
-
-
-private fun setupCamera(
-    cameraProvider: ProcessCameraProvider,
-    previewView: PreviewView,
-    lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+@Composable
+private fun BoxScope.CameraOverlayHeader(
     targetWord: String,
-    onTextDetected: (String) -> Unit
+    onBackClick: () -> Unit
 ) {
-    val preview = Preview.Builder().build().also {
-        it.setSurfaceProvider(previewView.surfaceProvider)
+    SmallTopAppBar(
+        title = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Busca: $targetWord",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Presiona \"Escanear\" para reconocer",
+                    color = Color.White.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Regresar",
+                    tint = Color.White
+                )
+            }
+        },
+        colors = TopAppBarDefaults.smallTopAppBarColors(
+            containerColor = Color.Black.copy(alpha = 0.6f),
+            titleContentColor = Color.White,
+            navigationIconContentColor = Color.White
+        ),
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .statusBarsPadding()
+    )
+}
+
+@Composable
+private fun StatusMessage(
+    message: String,
+    isError: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (isError) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
     }
-
-    val imageAnalyzer = ImageAnalysis.Builder()
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .build()
-        .also {
-            it.setAnalyzer(
-                ContextCompat.getMainExecutor(previewView.context),
-                TextAnalyzer(targetWord, onTextDetected)
-            )
-        }
-
-    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-    try {
-        cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
-            lifecycleOwner, cameraSelector, preview, imageAnalyzer
+    val contentColor = if (isError) {
+        MaterialTheme.colorScheme.onErrorContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = containerColor,
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Text(
+            text = message,
+            color = contentColor,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            textAlign = TextAlign.Center
         )
-    } catch (exc: Exception) {
-        Log.e("CameraOCR", "Use case binding failed", exc)
+    }
+}
+
+@Composable
+private fun PermissionDeniedContent(
+    onBackClick: () -> Unit,
+    onRequestPermission: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Necesitamos permiso de cámara",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Activa el permiso para escanear la palabra.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onRequestPermission,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Conceder permiso")
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        TextButton(onClick = onBackClick) {
+            Text("Volver")
+        }
     }
 }
