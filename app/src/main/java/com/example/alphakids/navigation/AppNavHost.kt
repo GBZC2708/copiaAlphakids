@@ -34,7 +34,7 @@ import com.example.alphakids.ui.screens.tutor.profile_selection.ProfileSelection
 import com.example.alphakids.ui.screens.tutor.home.StudentTabsRoute
 import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryRoute
 import com.example.alphakids.ui.screens.tutor.dictionary.StudentDictionaryViewModel
-import com.example.alphakids.ui.screens.tutor.achievements.StudentAchievementsScreen
+import com.example.alphakids.ui.screens.tutor.achievements.StudentAchievementsRoute
 import com.example.alphakids.ui.screens.tutor.games.GameScreen
 import com.example.alphakids.ui.screens.tutor.games.CameraScreen
 import com.example.alphakids.ui.screens.profile.EditProfileScreen
@@ -319,7 +319,7 @@ fun AppNavHost(
             arguments = listOf(navArgument("studentId") { type = NavType.StringType })
         ) { backStackEntry ->
             val studentId = backStackEntry.arguments?.getString("studentId") ?: "default"
-            StudentAchievementsScreen(
+            StudentAchievementsRoute(
                 onLogoutClick = onLogout,
                 onBackClick = { navController.popBackStack() },
                 onSettingsClick = { navController.navigate(Routes.editStudentProfileRoute(studentId)) },

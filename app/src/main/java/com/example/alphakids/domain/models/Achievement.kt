@@ -6,5 +6,6 @@ data class Achievement(
     val name: String,
     val description: String,
     val coins: Int,
-    val createdAtMillis: Long
+    val createdAtMillis: Long,
+    val imageUrl: String? = null
 )
